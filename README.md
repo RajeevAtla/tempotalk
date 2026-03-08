@@ -8,7 +8,8 @@ uv run baml-cli generate
 uv run pytest -q
 uv run ruff check .
 uv run ty check
-uv run python -m scripts.run_cli --config config/defaults.toml
+uv run python -m scripts.run_cli run --config config/defaults.toml --strict-citations
+uv run python -m scripts.run_cli validate-output outputs/run_YYYYMMDD_HHMMSS
 ```
 
 Run optional live Gemini integration tests:

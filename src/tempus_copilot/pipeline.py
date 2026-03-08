@@ -19,6 +19,7 @@ from tempus_copilot.models import PipelineResult
 from tempus_copilot.rag.chunking import chunk_text
 from tempus_copilot.rag.embed import (
     EmbeddingClient,
+    FallbackEmbeddingClient,
     GeminiEmbeddingClient,
     HashEmbeddingClient,
 )
@@ -68,18 +69,40 @@ def _build_query_text(provider_id: str, tumor_focus: str, concern: str) -> str:
 
 
 def _default_embedding_client(settings: Settings) -> EmbeddingClient:
+    fallback = HashEmbeddingClient(dimension=settings.rag.embedding_dimension)
     if settings.models.embedding_provider == "google":
         try:
-            return GeminiEmbeddingClient(model=settings.models.embedding_model)
+            primary = GeminiEmbeddingClient(
+                model=settings.models.embedding_model,
+                request_retries=settings.rag.request_retries,
+                backoff_seconds=settings.rag.backoff_seconds,
+            )
+            return FallbackEmbeddingClient(primary=primary, fallback=fallback)
         except RuntimeError:
-            return HashEmbeddingClient(dimension=settings.rag.embedding_dimension)
-    return HashEmbeddingClient(dimension=settings.rag.embedding_dimension)
+            return fallback
+    return fallback
+
+
+def _enforce_citations(
+    citations: list[str],
+    allowed: list[str],
+    confidence: float,
+    strict_citations: bool,
+) -> tuple[list[str], float]:
+    if not strict_citations:
+        return citations, confidence
+    allowed_set = set(allowed)
+    sanitized = [item for item in citations if item in allowed_set]
+    if len(sanitized) == len(citations):
+        return sanitized, confidence
+    return sanitized, max(0.0, confidence - 0.25)
 
 
 def run_pipeline(
     settings: Settings,
     embedding_client: EmbeddingClient | None = None,
     generation_client: GenerationClient | None = None,
+    strict_citations: bool | None = None,
 ) -> PipelineResult:
     _ensure_inputs(settings)
     providers = load_market_intelligence(settings.market_csv)
@@ -93,6 +116,9 @@ def run_pipeline(
     )
     embedder = embedding_client or _default_embedding_client(settings)
     generator = generation_client or get_default_generation_client()
+    enforce_strict = (
+        settings.output.strict_citations if strict_citations is None else strict_citations
+    )
 
     kb_chunks: list[dict[str, str]] = []
     for doc in kb_docs:
@@ -169,14 +195,26 @@ def run_pipeline(
             kb_context=context,
             citation_ids=citations,
         )
+        objection_citations, objection_confidence = _enforce_citations(
+            citations=objection.citations,
+            allowed=citations,
+            confidence=objection.confidence,
+            strict_citations=enforce_strict,
+        )
+        script_citations, script_confidence = _enforce_citations(
+            citations=script.citations,
+            allowed=citations,
+            confidence=script.confidence,
+            strict_citations=enforce_strict,
+        )
         objection_rows.append(
             {
                 "provider_id": objection.provider_id,
                 "concern": objection.concern,
                 "response": objection.response,
                 "supporting_metrics": objection.supporting_metrics,
-                "citations": objection.citations,
-                "confidence": objection.confidence,
+                "citations": objection_citations,
+                "confidence": objection_confidence,
             }
         )
         script_rows.append(
@@ -184,8 +222,8 @@ def run_pipeline(
                 "provider_id": script.provider_id,
                 "tumor_focus": script.tumor_focus,
                 "script": script.script,
-                "citations": script.citations,
-                "confidence": script.confidence,
+                "citations": script_citations,
+                "confidence": script_confidence,
             }
         )
     objection_payload = {"schema_version": SCHEMA_VERSION, "objections": objection_rows}

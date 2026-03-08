@@ -1,0 +1,19 @@
+name: Integration
+
+on:
+  workflow_dispatch:
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Sync deps
+        run: uv sync --locked --dev
+      - name: Generate BAML client
+        run: uv run baml-cli generate
+      - name: Run integration tests
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: uv run pytest -q -m integration

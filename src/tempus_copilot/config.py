@@ -20,6 +20,12 @@ class RagSettings(BaseModel):
     chunk_overlap: int
     top_k: int
     embedding_dimension: int
+    request_retries: int
+    backoff_seconds: float
+
+
+class OutputSettings(BaseModel):
+    strict_citations: bool = False
 
 
 class Settings(BaseModel):
@@ -31,6 +37,7 @@ class Settings(BaseModel):
     ranking_weights: RankingWeights
     ranking_calibration: RankingCalibration
     rag: RagSettings
+    output: OutputSettings
     mock_seed: int
     mock_scale: int
 
@@ -43,6 +50,7 @@ def load_settings(path: Path) -> Settings:
     ranking = raw["ranking"]["weights"]
     calibration = raw["ranking"]["calibration"]
     rag = raw["rag"]
+    output = raw.get("output", {"strict_citations": False})
     mock = raw["mock"]
     return Settings(
         market_csv=Path(paths["market_csv"]),
@@ -53,6 +61,7 @@ def load_settings(path: Path) -> Settings:
         ranking_weights=RankingWeights(**ranking),
         ranking_calibration=RankingCalibration(**calibration),
         rag=RagSettings(**rag),
+        output=OutputSettings(**output),
         mock_seed=int(mock["seed"]),
         mock_scale=int(mock["scale"]),
     )

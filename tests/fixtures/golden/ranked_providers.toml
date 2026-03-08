@@ -1,0 +1,73 @@
+schema_version = "1.0.0"
+
+[[providers]]
+provider_id = "P003"
+physician_name = "Dr. Carla Ruiz"
+institution = "Metro Health"
+score = 0.6906111111111111
+rationale = "volume=1.00, fit=0.55, objections=0.42, recency=0.11"
+
+[providers.factor_scores]
+patient_volume = 1.0
+clinical_fit = 0.5525
+objection_urgency = 0.425
+recency = 0.1111111111111111
+
+[providers.calibration_terms]
+specialty_fit = 0.85
+avg_concern_severity = 0.85
+note_count = 1.0
+
+[providers.factor_contributions]
+patient_volume = 0.45
+clinical_fit = 0.16574999999999998
+objection_urgency = 0.06375
+recency = 0.011111111111111112
+
+[[providers]]
+provider_id = "P001"
+physician_name = "Dr. Alice Smith"
+institution = "River Hospital"
+score = 0.6741666666666667
+rationale = "volume=0.75, fit=0.85, objections=0.50, recency=0.07"
+
+[providers.factor_scores]
+patient_volume = 0.75
+clinical_fit = 0.85
+objection_urgency = 0.5
+recency = 0.06666666666666667
+
+[providers.calibration_terms]
+specialty_fit = 1.0
+avg_concern_severity = 1.0
+note_count = 1.0
+
+[providers.factor_contributions]
+patient_volume = 0.3375
+clinical_fit = 0.255
+objection_urgency = 0.075
+recency = 0.006666666666666667
+
+[[providers]]
+provider_id = "P002"
+physician_name = "Dr. Brian Chen"
+institution = "Valley Cancer Center"
+score = 0.38936141304347827
+rationale = "volume=0.47, fit=0.40, objections=0.38, recency=0.02"
+
+[providers.factor_scores]
+patient_volume = 0.46875
+clinical_fit = 0.4
+objection_urgency = 0.375
+recency = 0.021739130434782608
+
+[providers.calibration_terms]
+specialty_fit = 1.0
+avg_concern_severity = 0.75
+note_count = 1.0
+
+[providers.factor_contributions]
+patient_volume = 0.2109375
+clinical_fit = 0.12
+objection_urgency = 0.056249999999999994
+recency = 0.002173913043478261

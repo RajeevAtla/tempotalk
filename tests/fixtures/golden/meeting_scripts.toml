@@ -1,0 +1,28 @@
+schema_version = "1.0.0"
+
+[[scripts]]
+provider_id = "P001"
+tumor_focus = "Lung"
+script = "Script P001 Lung"
+citations = [
+    "product_kb.md:0",
+]
+confidence = 0.74
+
+[[scripts]]
+provider_id = "P002"
+tumor_focus = "Breast"
+script = "Script P002 Breast"
+citations = [
+    "product_kb.md:0",
+]
+confidence = 0.74
+
+[[scripts]]
+provider_id = "P003"
+tumor_focus = "Leukemia"
+script = "Script P003 Leukemia"
+citations = [
+    "product_kb.md:0",
+]
+confidence = 0.74

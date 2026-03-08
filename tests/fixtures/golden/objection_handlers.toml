@@ -1,0 +1,49 @@
+schema_version = "1.0.0"
+
+[[objections]]
+provider_id = "P001"
+concern = "turnaround_time"
+response = "Objection P001 turnaround_time"
+supporting_metrics = [
+    "8",
+    "99.1",
+    "99.4",
+    "24",
+    "24 hours",
+]
+citations = [
+    "product_kb.md:0",
+]
+confidence = 0.77
+
+[[objections]]
+provider_id = "P002"
+concern = "reimbursement"
+response = "Objection P002 reimbursement"
+supporting_metrics = [
+    "8",
+    "99.1",
+    "99.4",
+    "24",
+    "24 hours",
+]
+citations = [
+    "product_kb.md:0",
+]
+confidence = 0.77
+
+[[objections]]
+provider_id = "P003"
+concern = "evidence_strength"
+response = "Objection P003 evidence_strength"
+supporting_metrics = [
+    "8",
+    "99.1",
+    "99.4",
+    "24",
+    "24 hours",
+]
+citations = [
+    "product_kb.md:0",
+]
+confidence = 0.77

@@ -34,6 +34,11 @@ chunk_size = 500
 chunk_overlap = 75
 top_k = 4
 embedding_dimension = 128
+request_retries = 2
+backoff_seconds = 0.5
+
+[output]
+strict_citations = false
 
 [mock]
 seed = 42

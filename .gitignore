@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 data/
 outputs/
+tests/.golden_tmp/
