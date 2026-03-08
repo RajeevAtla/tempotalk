@@ -4,11 +4,21 @@
 
 ```bash
 uv sync --dev
+uv run baml-cli generate
 uv run pytest -q
 uv run ruff check .
 uv run ty check
 uv run python -m scripts.run_cli --config config/defaults.toml
 ```
+
+## Gemini Setup
+
+Set `GOOGLE_API_KEY` to enable:
+
+- BAML generation via `gemini-2.5-flash`
+- Gemini embeddings via `gemini-embedding-001`
+
+If `GOOGLE_API_KEY` is not set, the CLI falls back to deterministic local stubs for generation and embeddings.
 
 ## Mock Data
 

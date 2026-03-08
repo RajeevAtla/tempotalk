@@ -16,10 +16,24 @@ clinical_fit = 0.3
 objection_urgency = 0.15
 recency = 0.1
 
+[ranking.calibration.concern_severity]
+turnaround_time = 1.0
+reimbursement = 0.75
+evidence_strength = 0.85
+workflow_fit = 0.6
+general = 0.5
+
+[ranking.calibration.specialty_fit]
+Oncology = 1.0
+Hematology = 0.85
+"Thoracic Oncology" = 0.95
+default = 0.7
+
 [rag]
 chunk_size = 500
 chunk_overlap = 75
 top_k = 4
+embedding_dimension = 128
 
 [mock]
 seed = 42

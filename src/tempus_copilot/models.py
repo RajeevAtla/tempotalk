@@ -38,12 +38,18 @@ class RankingWeights(BaseModel):
     recency: float = Field(ge=0)
 
 
+class RankingCalibration(BaseModel):
+    concern_severity: dict[str, float]
+    specialty_fit: dict[str, float]
+
+
 class RankedProvider(BaseModel):
     provider_id: str
     physician_name: str
     institution: str
     score: float
     rationale: str
+    factor_scores: dict[str, float]
 
 
 class PipelineResult(BaseModel):
