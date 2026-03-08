@@ -1,0 +1,26 @@
+[paths]
+market_csv = "data/mock/market_intelligence.csv"
+crm_csv = "data/mock/crm_notes.csv"
+kb_markdown = "data/mock/product_kb.md"
+output_dir = "outputs"
+
+[models]
+generation_provider = "google"
+generation_model = "gemini-2.5-flash"
+embedding_provider = "google"
+embedding_model = "gemini-embedding-001"
+
+[ranking.weights]
+patient_volume = 0.45
+clinical_fit = 0.3
+objection_urgency = 0.15
+recency = 0.1
+
+[rag]
+chunk_size = 500
+chunk_overlap = 75
+top_k = 4
+
+[mock]
+seed = 42
+scale = 25
