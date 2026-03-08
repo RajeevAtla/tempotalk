@@ -11,6 +11,12 @@ uv run ty check
 uv run python -m scripts.run_cli --config config/defaults.toml
 ```
 
+Run optional live Gemini integration tests:
+
+```bash
+uv run pytest -q -m integration
+```
+
 ## Gemini Setup
 
 Set `GOOGLE_API_KEY` to enable:
@@ -35,3 +41,4 @@ This writes:
 ## Outputs
 
 Running the CLI writes TOML output files to `outputs/run_YYYYMMDD_HHMMSS/`.
+Outputs include `schema_version` and metadata checksum (`output_checksum_sha256`).

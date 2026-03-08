@@ -57,7 +57,7 @@ class MeetingScriptAst:
     def __init__(self, tb: type_builder.TypeBuilder):
         _tb = tb._tb # type: ignore (we know how to use this private attribute)
         self._bldr = _tb.class_("MeetingScript")
-        self._properties: typing.Set[str] = set([  "provider_id",  "script",  ])
+        self._properties: typing.Set[str] = set([  "provider_id",  "tumor_focus",  "script",  "citations",  "confidence",  ])
         self._props = MeetingScriptProperties(self._bldr, self._properties)
 
     def type(self) -> baml_py.FieldType:
@@ -90,8 +90,20 @@ class MeetingScriptProperties:
         return type_builder.ClassPropertyViewer(self.__bldr.property("provider_id"))
     
     @property
+    def tumor_focus(self) -> type_builder.ClassPropertyViewer:
+        return type_builder.ClassPropertyViewer(self.__bldr.property("tumor_focus"))
+    
+    @property
     def script(self) -> type_builder.ClassPropertyViewer:
         return type_builder.ClassPropertyViewer(self.__bldr.property("script"))
+    
+    @property
+    def citations(self) -> type_builder.ClassPropertyViewer:
+        return type_builder.ClassPropertyViewer(self.__bldr.property("citations"))
+    
+    @property
+    def confidence(self) -> type_builder.ClassPropertyViewer:
+        return type_builder.ClassPropertyViewer(self.__bldr.property("confidence"))
     
     
 
@@ -100,7 +112,7 @@ class ObjectionHandlerAst:
     def __init__(self, tb: type_builder.TypeBuilder):
         _tb = tb._tb # type: ignore (we know how to use this private attribute)
         self._bldr = _tb.class_("ObjectionHandler")
-        self._properties: typing.Set[str] = set([  "provider_id",  "response",  ])
+        self._properties: typing.Set[str] = set([  "provider_id",  "concern",  "response",  "supporting_metrics",  "citations",  "confidence",  ])
         self._props = ObjectionHandlerProperties(self._bldr, self._properties)
 
     def type(self) -> baml_py.FieldType:
@@ -133,8 +145,24 @@ class ObjectionHandlerProperties:
         return type_builder.ClassPropertyViewer(self.__bldr.property("provider_id"))
     
     @property
+    def concern(self) -> type_builder.ClassPropertyViewer:
+        return type_builder.ClassPropertyViewer(self.__bldr.property("concern"))
+    
+    @property
     def response(self) -> type_builder.ClassPropertyViewer:
         return type_builder.ClassPropertyViewer(self.__bldr.property("response"))
+    
+    @property
+    def supporting_metrics(self) -> type_builder.ClassPropertyViewer:
+        return type_builder.ClassPropertyViewer(self.__bldr.property("supporting_metrics"))
+    
+    @property
+    def citations(self) -> type_builder.ClassPropertyViewer:
+        return type_builder.ClassPropertyViewer(self.__bldr.property("citations"))
+    
+    @property
+    def confidence(self) -> type_builder.ClassPropertyViewer:
+        return type_builder.ClassPropertyViewer(self.__bldr.property("confidence"))
     
     
 

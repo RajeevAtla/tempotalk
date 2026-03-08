@@ -27,6 +27,8 @@ class FaissIndex:
         self._metadata.extend(metadata)
 
     def query(self, vector: np.ndarray, top_k: int) -> list[dict[str, Any]]:
+        if top_k <= 0:
+            return []
         if vector.dtype != np.float32:
             vector = vector.astype(np.float32)
         if vector.ndim == 1:

@@ -52,6 +52,17 @@ def rank_providers(
             "objection_urgency": objection_score,
             "recency": recency_score,
         }
+        factor_contributions = {
+            "patient_volume": volume_score * weights.patient_volume,
+            "clinical_fit": fit_score * weights.clinical_fit,
+            "objection_urgency": objection_score * weights.objection_urgency,
+            "recency": recency_score * weights.recency,
+        }
+        calibration_terms = {
+            "specialty_fit": specialty_fit,
+            "avg_concern_severity": avg_severity,
+            "note_count": float(note_counts[provider.provider_id]),
+        }
         ranked.append(
             RankedProvider(
                 provider_id=provider.provider_id,
@@ -63,6 +74,8 @@ def rank_providers(
                     f"objections={objection_score:.2f}, recency={recency_score:.2f}"
                 ),
                 factor_scores=factor_scores,
+                calibration_terms=calibration_terms,
+                factor_contributions=factor_contributions,
             )
         )
     ranked.sort(key=lambda item: item.score, reverse=True)

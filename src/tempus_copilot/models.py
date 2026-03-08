@@ -50,6 +50,25 @@ class RankedProvider(BaseModel):
     score: float
     rationale: str
     factor_scores: dict[str, float]
+    calibration_terms: dict[str, float]
+    factor_contributions: dict[str, float]
+
+
+class ObjectionArtifact(BaseModel):
+    provider_id: str
+    concern: str
+    response: str
+    supporting_metrics: list[str]
+    citations: list[str]
+    confidence: float = Field(ge=0, le=1)
+
+
+class MeetingScriptArtifact(BaseModel):
+    provider_id: str
+    tumor_focus: str
+    script: str
+    citations: list[str]
+    confidence: float = Field(ge=0, le=1)
 
 
 class PipelineResult(BaseModel):

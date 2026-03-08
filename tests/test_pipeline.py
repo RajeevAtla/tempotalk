@@ -4,6 +4,8 @@ from pathlib import Path
 import numpy as np
 
 from tempus_copilot.config import load_settings
+from tempus_copilot.models import MeetingScriptArtifact, ObjectionArtifact
+from tempus_copilot.output_schema import validate_run_outputs
 from tempus_copilot.pipeline import run_pipeline
 
 
@@ -28,16 +30,32 @@ class FakeGenerationClient:
         provider_id: str,
         concern: str,
         kb_context: str,
-    ) -> str:
-        return f"{provider_id}:{concern}:{kb_context[:40]}"
+        citation_ids: list[str],
+        observed_metrics: list[str],
+    ) -> ObjectionArtifact:
+        return ObjectionArtifact(
+            provider_id=provider_id,
+            concern=concern,
+            response=f"{provider_id}:{concern}:{kb_context[:40]}",
+            supporting_metrics=observed_metrics,
+            citations=citation_ids,
+            confidence=0.86,
+        )
 
     def generate_meeting_script(
         self,
         provider_id: str,
         tumor_focus: str,
         kb_context: str,
-    ) -> str:
-        return f"{provider_id}:{tumor_focus}:{kb_context[:40]}"
+        citation_ids: list[str],
+    ) -> MeetingScriptArtifact:
+        return MeetingScriptArtifact(
+            provider_id=provider_id,
+            tumor_focus=tumor_focus,
+            script=f"{provider_id}:{tumor_focus}:{kb_context[:40]}",
+            citations=citation_ids,
+            confidence=0.82,
+        )
 
 
 def test_pipeline_writes_toml_outputs(tmp_path: Path) -> None:
@@ -59,9 +77,14 @@ def test_pipeline_writes_toml_outputs(tmp_path: Path) -> None:
     assert "providers" in ranked
     assert "objections" in objections
     assert "scripts" in scripts
+    assert ranked["schema_version"] == "1.0.0"
+    assert objections["schema_version"] == "1.0.0"
+    assert scripts["schema_version"] == "1.0.0"
 
     first_ranked = ranked["providers"][0]
     assert "factor_scores" in first_ranked
+    assert "factor_contributions" in first_ranked
+    assert "calibration_terms" in first_ranked
     assert "score" in first_ranked
 
     first_objection = objections["objections"][0]
@@ -72,3 +95,6 @@ def test_pipeline_writes_toml_outputs(tmp_path: Path) -> None:
     first_script = scripts["scripts"][0]
     assert "citations" in first_script
     assert "confidence" in first_script
+
+    errors = validate_run_outputs(result.run_dir)
+    assert errors == []

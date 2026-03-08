@@ -46,11 +46,18 @@ def all_succeeded(checks: typing.Dict[CheckName, Check]) -> bool:
 
 class MeetingScript(BaseModel):
     provider_id: str
+    tumor_focus: str
     script: str
+    citations: typing.List[str]
+    confidence: float
 
 class ObjectionHandler(BaseModel):
     provider_id: str
+    concern: str
     response: str
+    supporting_metrics: typing.List[str]
+    citations: typing.List[str]
+    confidence: float
 
 # #########################################################################
 # Generated type aliases (0)

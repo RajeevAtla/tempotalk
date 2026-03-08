@@ -28,11 +28,18 @@ class StreamState(BaseModel, typing.Generic[StreamStateValueT]):
 
 class MeetingScript(BaseModel):
     provider_id: typing.Optional[str] = None
+    tumor_focus: typing.Optional[str] = None
     script: typing.Optional[str] = None
+    citations: typing.List[str]
+    confidence: typing.Optional[float] = None
 
 class ObjectionHandler(BaseModel):
     provider_id: typing.Optional[str] = None
+    concern: typing.Optional[str] = None
     response: typing.Optional[str] = None
+    supporting_metrics: typing.List[str]
+    citations: typing.List[str]
+    confidence: typing.Optional[float] = None
 
 # #########################################################################
 # Generated type aliases (0)

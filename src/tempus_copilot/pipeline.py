@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import UTC, datetime
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,8 @@ from tempus_copilot.rag.embed import (
 from tempus_copilot.rag.faiss_index import FaissIndex
 from tempus_copilot.ranking.score import rank_providers
 
+SCHEMA_VERSION = "1.0.0"
+
 
 def _ensure_inputs(settings: Settings) -> None:
     if settings.market_csv.exists() and settings.crm_csv.exists() and settings.kb_markdown.exists():
@@ -44,6 +47,7 @@ def _write_toml(path: Path, payload: dict[str, Any]) -> None:
 def _extract_metrics(text: str) -> list[str]:
     patterns = [
         r"\b\d+(?:\.\d+)?%\b",
+        r"\b\d+(?:\.\d+)?\b",
         r"\b\d+\s*(?:day|days|hour|hours)\b",
     ]
     matches: list[str] = []
@@ -125,6 +129,7 @@ def run_pipeline(
     _write_toml(
         ranked_path,
         {
+            "schema_version": SCHEMA_VERSION,
             "providers": [
                 {
                     "provider_id": item.provider_id,
@@ -133,6 +138,8 @@ def run_pipeline(
                     "score": item.score,
                     "rationale": item.rationale,
                     "factor_scores": item.factor_scores,
+                    "calibration_terms": item.calibration_terms,
+                    "factor_contributions": item.factor_contributions,
                 }
                 for item in ranked
             ]
@@ -149,41 +156,54 @@ def run_pipeline(
         context = "\n\n".join(item["text"] for item in retrieved)
         citations = [item["chunk_id"] for item in retrieved]
         metrics = _extract_metrics(context)
-        confidence = min(1.0, 0.5 + 0.1 * float(len(citations)))
+        objection = generator.generate_objection_handler(
+            provider_id=provider.provider_id,
+            concern=concern,
+            kb_context=context,
+            citation_ids=citations,
+            observed_metrics=metrics,
+        )
+        script = generator.generate_meeting_script(
+            provider_id=provider.provider_id,
+            tumor_focus=provider.tumor_focus,
+            kb_context=context,
+            citation_ids=citations,
+        )
         objection_rows.append(
             {
-                "provider_id": provider.provider_id,
-                "concern": concern,
-                "response": generator.generate_objection_handler(
-                    provider_id=provider.provider_id,
-                    concern=concern,
-                    kb_context=context,
-                ),
-                "supporting_metrics": metrics,
-                "citations": citations,
-                "confidence": round(confidence, 3),
+                "provider_id": objection.provider_id,
+                "concern": objection.concern,
+                "response": objection.response,
+                "supporting_metrics": objection.supporting_metrics,
+                "citations": objection.citations,
+                "confidence": objection.confidence,
             }
         )
         script_rows.append(
             {
-                "provider_id": provider.provider_id,
-                "tumor_focus": provider.tumor_focus,
-                "script": generator.generate_meeting_script(
-                    provider_id=provider.provider_id,
-                    tumor_focus=provider.tumor_focus,
-                    kb_context=context,
-                ),
-                "citations": citations,
-                "confidence": round(confidence, 3),
+                "provider_id": script.provider_id,
+                "tumor_focus": script.tumor_focus,
+                "script": script.script,
+                "citations": script.citations,
+                "confidence": script.confidence,
             }
         )
-    objection_payload = {"objections": objection_rows}
-    meeting_payload = {"scripts": script_rows}
+    objection_payload = {"schema_version": SCHEMA_VERSION, "objections": objection_rows}
+    meeting_payload = {"schema_version": SCHEMA_VERSION, "scripts": script_rows}
     _write_toml(objection_path, objection_payload)
     _write_toml(script_path, meeting_payload)
+    checksum_payload = "|".join(
+        [
+            ranked_path.read_text(encoding="utf-8"),
+            objection_path.read_text(encoding="utf-8"),
+            script_path.read_text(encoding="utf-8"),
+        ]
+    ).encode("utf-8")
+    checksum = sha256(checksum_payload).hexdigest()
     _write_toml(
         metadata_path,
         {
+            "schema_version": SCHEMA_VERSION,
             "generated_at_utc": datetime.now(UTC).isoformat(),
             "provider_count": len(providers),
             "note_count": len(notes),
@@ -191,6 +211,7 @@ def run_pipeline(
             "kb_chunk_count": len(kb_chunks),
             "generation_model": settings.models.generation_model,
             "embedding_model": settings.models.embedding_model,
+            "output_checksum_sha256": checksum,
         },
     )
     return PipelineResult(

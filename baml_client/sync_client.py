@@ -94,32 +94,32 @@ class BamlSyncClient:
     def parse_stream(self):
       return self.__llm_stream_parser
 
-    def GenerateMeetingScript(self, provider_id: str,tumor_focus: str,kb_context: str,
+    def GenerateMeetingScript(self, provider_id: str,tumor_focus: str,kb_context: str,citation_ids: typing.List[str],
         baml_options: BamlCallOptions = {},
     ) -> types.MeetingScript:
         # Check if on_tick is provided
         if 'on_tick' in baml_options:
-            __stream__ = self.stream.GenerateMeetingScript(provider_id=provider_id,tumor_focus=tumor_focus,kb_context=kb_context,
+            __stream__ = self.stream.GenerateMeetingScript(provider_id=provider_id,tumor_focus=tumor_focus,kb_context=kb_context,citation_ids=citation_ids,
                 baml_options=baml_options)
             return __stream__.get_final_response()
         else:
             # Original non-streaming code
             __result__ = self.__options.merge_options(baml_options).call_function_sync(function_name="GenerateMeetingScript", args={
-                "provider_id": provider_id,"tumor_focus": tumor_focus,"kb_context": kb_context,
+                "provider_id": provider_id,"tumor_focus": tumor_focus,"kb_context": kb_context,"citation_ids": citation_ids,
             })
             return typing.cast(types.MeetingScript, __result__.cast_to(types, types, stream_types, False, __runtime__))
-    def GenerateObjectionHandler(self, provider_id: str,concern: str,kb_context: str,
+    def GenerateObjectionHandler(self, provider_id: str,concern: str,kb_context: str,citation_ids: typing.List[str],observed_metrics: typing.List[str],
         baml_options: BamlCallOptions = {},
     ) -> types.ObjectionHandler:
         # Check if on_tick is provided
         if 'on_tick' in baml_options:
-            __stream__ = self.stream.GenerateObjectionHandler(provider_id=provider_id,concern=concern,kb_context=kb_context,
+            __stream__ = self.stream.GenerateObjectionHandler(provider_id=provider_id,concern=concern,kb_context=kb_context,citation_ids=citation_ids,observed_metrics=observed_metrics,
                 baml_options=baml_options)
             return __stream__.get_final_response()
         else:
             # Original non-streaming code
             __result__ = self.__options.merge_options(baml_options).call_function_sync(function_name="GenerateObjectionHandler", args={
-                "provider_id": provider_id,"concern": concern,"kb_context": kb_context,
+                "provider_id": provider_id,"concern": concern,"kb_context": kb_context,"citation_ids": citation_ids,"observed_metrics": observed_metrics,
             })
             return typing.cast(types.ObjectionHandler, __result__.cast_to(types, types, stream_types, False, __runtime__))
     
@@ -131,11 +131,11 @@ class BamlStreamClient:
     def __init__(self, options: DoNotUseDirectlyCallManager):
         self.__options = options
 
-    def GenerateMeetingScript(self, provider_id: str,tumor_focus: str,kb_context: str,
+    def GenerateMeetingScript(self, provider_id: str,tumor_focus: str,kb_context: str,citation_ids: typing.List[str],
         baml_options: BamlCallOptions = {},
     ) -> baml_py.BamlSyncStream[stream_types.MeetingScript, types.MeetingScript]:
         __ctx__, __result__ = self.__options.merge_options(baml_options).create_sync_stream(function_name="GenerateMeetingScript", args={
-            "provider_id": provider_id,"tumor_focus": tumor_focus,"kb_context": kb_context,
+            "provider_id": provider_id,"tumor_focus": tumor_focus,"kb_context": kb_context,"citation_ids": citation_ids,
         })
         return baml_py.BamlSyncStream[stream_types.MeetingScript, types.MeetingScript](
           __result__,
@@ -143,11 +143,11 @@ class BamlStreamClient:
           lambda x: typing.cast(types.MeetingScript, x.cast_to(types, types, stream_types, False, __runtime__)),
           __ctx__,
         )
-    def GenerateObjectionHandler(self, provider_id: str,concern: str,kb_context: str,
+    def GenerateObjectionHandler(self, provider_id: str,concern: str,kb_context: str,citation_ids: typing.List[str],observed_metrics: typing.List[str],
         baml_options: BamlCallOptions = {},
     ) -> baml_py.BamlSyncStream[stream_types.ObjectionHandler, types.ObjectionHandler]:
         __ctx__, __result__ = self.__options.merge_options(baml_options).create_sync_stream(function_name="GenerateObjectionHandler", args={
-            "provider_id": provider_id,"concern": concern,"kb_context": kb_context,
+            "provider_id": provider_id,"concern": concern,"kb_context": kb_context,"citation_ids": citation_ids,"observed_metrics": observed_metrics,
         })
         return baml_py.BamlSyncStream[stream_types.ObjectionHandler, types.ObjectionHandler](
           __result__,
@@ -163,18 +163,18 @@ class BamlHttpRequestClient:
     def __init__(self, options: DoNotUseDirectlyCallManager):
         self.__options = options
 
-    def GenerateMeetingScript(self, provider_id: str,tumor_focus: str,kb_context: str,
+    def GenerateMeetingScript(self, provider_id: str,tumor_focus: str,kb_context: str,citation_ids: typing.List[str],
         baml_options: BamlCallOptions = {},
     ) -> baml_py.baml_py.HTTPRequest:
         __result__ = self.__options.merge_options(baml_options).create_http_request_sync(function_name="GenerateMeetingScript", args={
-            "provider_id": provider_id,"tumor_focus": tumor_focus,"kb_context": kb_context,
+            "provider_id": provider_id,"tumor_focus": tumor_focus,"kb_context": kb_context,"citation_ids": citation_ids,
         }, mode="request")
         return __result__
-    def GenerateObjectionHandler(self, provider_id: str,concern: str,kb_context: str,
+    def GenerateObjectionHandler(self, provider_id: str,concern: str,kb_context: str,citation_ids: typing.List[str],observed_metrics: typing.List[str],
         baml_options: BamlCallOptions = {},
     ) -> baml_py.baml_py.HTTPRequest:
         __result__ = self.__options.merge_options(baml_options).create_http_request_sync(function_name="GenerateObjectionHandler", args={
-            "provider_id": provider_id,"concern": concern,"kb_context": kb_context,
+            "provider_id": provider_id,"concern": concern,"kb_context": kb_context,"citation_ids": citation_ids,"observed_metrics": observed_metrics,
         }, mode="request")
         return __result__
     
@@ -185,18 +185,18 @@ class BamlHttpStreamRequestClient:
     def __init__(self, options: DoNotUseDirectlyCallManager):
         self.__options = options
 
-    def GenerateMeetingScript(self, provider_id: str,tumor_focus: str,kb_context: str,
+    def GenerateMeetingScript(self, provider_id: str,tumor_focus: str,kb_context: str,citation_ids: typing.List[str],
         baml_options: BamlCallOptions = {},
     ) -> baml_py.baml_py.HTTPRequest:
         __result__ = self.__options.merge_options(baml_options).create_http_request_sync(function_name="GenerateMeetingScript", args={
-            "provider_id": provider_id,"tumor_focus": tumor_focus,"kb_context": kb_context,
+            "provider_id": provider_id,"tumor_focus": tumor_focus,"kb_context": kb_context,"citation_ids": citation_ids,
         }, mode="stream")
         return __result__
-    def GenerateObjectionHandler(self, provider_id: str,concern: str,kb_context: str,
+    def GenerateObjectionHandler(self, provider_id: str,concern: str,kb_context: str,citation_ids: typing.List[str],observed_metrics: typing.List[str],
         baml_options: BamlCallOptions = {},
     ) -> baml_py.baml_py.HTTPRequest:
         __result__ = self.__options.merge_options(baml_options).create_http_request_sync(function_name="GenerateObjectionHandler", args={
-            "provider_id": provider_id,"concern": concern,"kb_context": kb_context,
+            "provider_id": provider_id,"concern": concern,"kb_context": kb_context,"citation_ids": citation_ids,"observed_metrics": observed_metrics,
         }, mode="stream")
         return __result__
     
