@@ -1,0 +1,46 @@
+[project]
+name = "tempus-sales-copilot"
+version = "0.1.0"
+description = "CLI prototype for Tempus Sales Copilot"
+readme = "README.md"
+requires-python = ">=3.13,<3.14"
+license = "MIT"
+authors = [
+  { name = "Rajeev Atla", email = "rajeev@rajeevatla.com" },
+]
+dependencies = [
+  "baml-py>=0.203.1",
+  "faiss-cpu>=1.12.0",
+  "numpy>=2.3.3",
+  "polars>=1.33.1",
+  "pydantic>=2.11.9",
+  "pypdf>=6.0.0",
+  "python-dotenv>=1.1.1",
+  "tomli-w>=1.2.0",
+]
+
+[project.scripts]
+tempus-copilot = "tempus_copilot.cli:main"
+
+[dependency-groups]
+dev = [
+  "pluggy==1.5.0",
+  "pytest==8.4.2",
+  "pytest-cov==6.2.1",
+  "ruff==0.15.5",
+  "ty==0.0.21",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ty.src]
+include = ["src", "tests"]
