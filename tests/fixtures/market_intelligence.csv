@@ -1,0 +1,4 @@
+provider_id,physician_name,specialty,institution,region,estimated_patient_volume,tumor_focus,adoption_signal,last_interaction_days
+P001,Dr. Alice Smith,Oncology,River Hospital,Northeast,120,Lung,0.85,14
+P002,Dr. Brian Chen,Oncology,Valley Cancer Center,Midwest,75,Breast,0.40,45
+P003,Dr. Carla Ruiz,Hematology,Metro Health,West,160,Leukemia,0.65,8
