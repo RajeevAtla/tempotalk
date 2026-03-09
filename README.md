@@ -6,9 +6,10 @@
 uv sync --dev
 uv run baml-cli generate
 uv run pytest -q
+uv run pytest -q tests/test_golden_run.py
 uv run ruff check .
 uv run ty check
-uv run python -m scripts.run_cli run --config config/defaults.toml --strict-citations
+uv run python -m scripts.run_cli run --config config/defaults.toml --strict-citations --fail-on-low-confidence 0.6
 uv run python -m scripts.run_cli validate-output outputs/run_YYYYMMDD_HHMMSS
 ```
 

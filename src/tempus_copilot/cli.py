@@ -8,8 +8,16 @@ from tempus_copilot.output_schema import validate_run_outputs
 from tempus_copilot.pipeline import run_pipeline
 
 
-def run(settings: Settings, strict_citations: bool = False) -> int:
-    run_pipeline(settings, strict_citations=strict_citations)
+def run(
+    settings: Settings,
+    strict_citations: bool = False,
+    fail_on_low_confidence: float | None = None,
+) -> int:
+    run_pipeline(
+        settings,
+        strict_citations=strict_citations,
+        fail_on_low_confidence=fail_on_low_confidence,
+    )
     return 0
 
 
@@ -29,6 +37,12 @@ def main() -> int:
         action="store_true",
         help="Enforce retrieved citation whitelist on generated outputs",
     )
+    run_parser.add_argument(
+        "--fail-on-low-confidence",
+        type=float,
+        default=None,
+        help="Fail run if any generated confidence is below threshold (0.0-1.0)",
+    )
 
     validate_parser = subparsers.add_parser(
         "validate-output",
@@ -40,8 +54,13 @@ def main() -> int:
     if args.command in (None, "run"):
         config_path = getattr(args, "config", Path("config/defaults.toml"))
         strict = bool(getattr(args, "strict_citations", False))
+        threshold = getattr(args, "fail_on_low_confidence", None)
         settings = load_settings(config_path)
-        return run(settings, strict_citations=strict)
+        return run(
+            settings,
+            strict_citations=strict,
+            fail_on_low_confidence=threshold,
+        )
 
     if args.command == "validate-output":
         errors = validate_run_outputs(args.run_dir)

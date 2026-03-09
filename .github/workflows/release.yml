@@ -1,0 +1,69 @@
+name: Release Checks
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Sync deps
+        run: uv sync --locked --dev
+      - name: Generate BAML client
+        run: uv run baml-cli generate
+      - name: Ruff
+        run: uv run ruff check .
+      - name: Ty
+        run: uv run ty check
+      - name: Unit tests
+        run: uv run pytest -q -m "not integration"
+
+  golden:
+    runs-on: ubuntu-latest
+    needs: unit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Sync deps
+        run: uv sync --locked --dev
+      - name: Generate BAML client
+        run: uv run baml-cli generate
+      - name: Golden tests
+        run: uv run pytest -q tests/test_golden_run.py
+
+  integration:
+    runs-on: ubuntu-latest
+    needs: unit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Sync deps
+        run: uv sync --locked --dev
+      - name: Generate BAML client
+        run: uv run baml-cli generate
+      - name: Integration tests
+        env:
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: uv run pytest -q -m integration
+
+  publish-artifacts:
+    runs-on: ubuntu-latest
+    needs: [unit, golden, integration]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Package release bundle
+        run: |
+          mkdir -p release_bundle/config
+          mkdir -p release_bundle/golden
+          mkdir -p release_bundle/baml
+          cp config/defaults.toml release_bundle/config/defaults.toml
+          cp tests/fixtures/golden/*.toml release_bundle/golden/
+          cp baml_src/sales_copilot.baml release_bundle/baml/sales_copilot.baml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-bundle
+          path: release_bundle

@@ -76,4 +76,5 @@ class PipelineResult(BaseModel):
     ranked_providers_path: Path
     objection_handlers_path: Path
     meeting_scripts_path: Path
+    retrieval_debug_path: Path
     metadata_path: Path

@@ -45,6 +45,33 @@ def _write_toml(path: Path, payload: dict[str, Any]) -> None:
         toml_dump(payload, fh)
 
 
+def _baml_source_path() -> Path:
+    return Path("baml_src/sales_copilot.baml")
+
+
+def _compute_baml_hashes() -> tuple[str, str]:
+    path = _baml_source_path()
+    if not path.exists():
+        empty_hash = sha256(b"").hexdigest()
+        return empty_hash, empty_hash
+    text = path.read_text(encoding="utf-8")
+    schema_lines: list[str] = []
+    prompt_blocks = re.findall(r'prompt\s+#"(.*?)"#', text, flags=re.DOTALL)
+    in_prompt = False
+    for line in text.splitlines():
+        if "prompt #\"" in line:
+            in_prompt = True
+            continue
+        if in_prompt and "\"#" in line:
+            in_prompt = False
+            continue
+        if not in_prompt:
+            schema_lines.append(line)
+    schema_hash = sha256("\n".join(schema_lines).encode("utf-8")).hexdigest()
+    prompt_hash = sha256("\n".join(prompt_blocks).encode("utf-8")).hexdigest()
+    return schema_hash, prompt_hash
+
+
 def _extract_metrics(text: str) -> list[str]:
     patterns = [
         r"\b\d+(?:\.\d+)?%\b",
@@ -103,6 +130,7 @@ def run_pipeline(
     embedding_client: EmbeddingClient | None = None,
     generation_client: GenerationClient | None = None,
     strict_citations: bool | None = None,
+    fail_on_low_confidence: float | None = None,
 ) -> PipelineResult:
     _ensure_inputs(settings)
     providers = load_market_intelligence(settings.market_csv)
@@ -151,6 +179,7 @@ def run_pipeline(
     ranked_path = run_dir / "ranked_providers.toml"
     objection_path = run_dir / "objection_handlers.toml"
     script_path = run_dir / "meeting_scripts.toml"
+    retrieval_debug_path = run_dir / "retrieval_debug.toml"
     metadata_path = run_dir / "run_metadata.toml"
     _write_toml(
         ranked_path,
@@ -173,14 +202,16 @@ def run_pipeline(
     )
     objection_rows: list[dict[str, Any]] = []
     script_rows: list[dict[str, Any]] = []
+    retrieval_rows: list[dict[str, Any]] = []
     for provider in providers:
         provider_notes = [note for note in notes if note.provider_id == provider.provider_id]
         concern = provider_notes[0].concern_type if provider_notes else "general"
         query_text = _build_query_text(provider.provider_id, provider.tumor_focus, concern)
         query_vector = embedder.embed_texts([query_text])[0]
-        retrieved = index.query(query_vector, top_k=settings.rag.top_k)
-        context = "\n\n".join(item["text"] for item in retrieved)
-        citations = [item["chunk_id"] for item in retrieved]
+        retrieved = index.query_with_scores(query_vector, top_k=settings.rag.top_k)
+        retrieved_meta = [item["metadata"] for item in retrieved]
+        context = "\n\n".join(item["text"] for item in retrieved_meta)
+        citations = [item["chunk_id"] for item in retrieved_meta]
         metrics = _extract_metrics(context)
         objection = generator.generate_objection_handler(
             provider_id=provider.provider_id,
@@ -226,10 +257,26 @@ def run_pipeline(
                 "confidence": script_confidence,
             }
         )
+        retrieval_rows.append(
+            {
+                "provider_id": provider.provider_id,
+                "query_text": query_text,
+                "retrieved": [
+                    {
+                        "chunk_id": str(item["metadata"].get("chunk_id", "")),
+                        "source": str(item["metadata"].get("source", "")),
+                        "distance": float(item["distance"]),
+                    }
+                    for item in retrieved
+                ],
+            }
+        )
     objection_payload = {"schema_version": SCHEMA_VERSION, "objections": objection_rows}
     meeting_payload = {"schema_version": SCHEMA_VERSION, "scripts": script_rows}
+    retrieval_payload = {"schema_version": SCHEMA_VERSION, "retrieval_debug": retrieval_rows}
     _write_toml(objection_path, objection_payload)
     _write_toml(script_path, meeting_payload)
+    _write_toml(retrieval_debug_path, retrieval_payload)
     checksum_payload = "|".join(
         [
             ranked_path.read_text(encoding="utf-8"),
@@ -238,6 +285,7 @@ def run_pipeline(
         ]
     ).encode("utf-8")
     checksum = sha256(checksum_payload).hexdigest()
+    baml_schema_hash, baml_prompt_hash = _compute_baml_hashes()
     _write_toml(
         metadata_path,
         {
@@ -250,12 +298,23 @@ def run_pipeline(
             "generation_model": settings.models.generation_model,
             "embedding_model": settings.models.embedding_model,
             "output_checksum_sha256": checksum,
+            "baml_schema_sha256": baml_schema_hash,
+            "baml_prompt_sha256": baml_prompt_hash,
         },
     )
+    if fail_on_low_confidence is not None:
+        all_confidences = [float(row["confidence"]) for row in objection_rows] + [
+            float(row["confidence"]) for row in script_rows
+        ]
+        if any(value < fail_on_low_confidence for value in all_confidences):
+            raise ValueError(
+                f"Confidence threshold violated: threshold={fail_on_low_confidence}"
+            )
     return PipelineResult(
         run_dir=run_dir,
         ranked_providers_path=ranked_path,
         objection_handlers_path=objection_path,
         meeting_scripts_path=script_path,
+        retrieval_debug_path=retrieval_debug_path,
         metadata_path=metadata_path,
     )

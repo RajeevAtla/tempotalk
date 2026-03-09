@@ -69,10 +69,13 @@ def test_pipeline_writes_toml_outputs(tmp_path: Path) -> None:
     assert result.ranked_providers_path.exists()
     assert result.objection_handlers_path.exists()
     assert result.meeting_scripts_path.exists()
+    assert result.retrieval_debug_path.exists()
 
     ranked = tomllib.loads(result.ranked_providers_path.read_text(encoding="utf-8"))
     objections = tomllib.loads(result.objection_handlers_path.read_text(encoding="utf-8"))
     scripts = tomllib.loads(result.meeting_scripts_path.read_text(encoding="utf-8"))
+    metadata = tomllib.loads(result.metadata_path.read_text(encoding="utf-8"))
+    retrieval = tomllib.loads(result.retrieval_debug_path.read_text(encoding="utf-8"))
 
     assert "providers" in ranked
     assert "objections" in objections
@@ -80,6 +83,7 @@ def test_pipeline_writes_toml_outputs(tmp_path: Path) -> None:
     assert ranked["schema_version"] == "1.0.0"
     assert objections["schema_version"] == "1.0.0"
     assert scripts["schema_version"] == "1.0.0"
+    assert retrieval["schema_version"] == "1.0.0"
 
     first_ranked = ranked["providers"][0]
     assert "factor_scores" in first_ranked
@@ -95,6 +99,9 @@ def test_pipeline_writes_toml_outputs(tmp_path: Path) -> None:
     first_script = scripts["scripts"][0]
     assert "citations" in first_script
     assert "confidence" in first_script
+    assert "baml_schema_sha256" in metadata
+    assert "baml_prompt_sha256" in metadata
+    assert retrieval["retrieval_debug"][0]["retrieved"][0]["distance"] >= 0
 
     errors = validate_run_outputs(result.run_dir)
     assert errors == []

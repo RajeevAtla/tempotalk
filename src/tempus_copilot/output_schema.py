@@ -8,7 +8,13 @@ REQUIRED_TOP_LEVEL = {
     "ranked_providers.toml": ["schema_version", "providers"],
     "objection_handlers.toml": ["schema_version", "objections"],
     "meeting_scripts.toml": ["schema_version", "scripts"],
-    "run_metadata.toml": ["schema_version", "output_checksum_sha256"],
+    "retrieval_debug.toml": ["schema_version", "retrieval_debug"],
+    "run_metadata.toml": [
+        "schema_version",
+        "output_checksum_sha256",
+        "baml_schema_sha256",
+        "baml_prompt_sha256",
+    ],
 }
 
 

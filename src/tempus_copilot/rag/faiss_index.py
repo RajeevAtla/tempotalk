@@ -27,6 +27,9 @@ class FaissIndex:
         self._metadata.extend(metadata)
 
     def query(self, vector: np.ndarray, top_k: int) -> list[dict[str, Any]]:
+        return [item["metadata"] for item in self.query_with_scores(vector=vector, top_k=top_k)]
+
+    def query_with_scores(self, vector: np.ndarray, top_k: int) -> list[dict[str, Any]]:
         if top_k <= 0:
             return []
         if vector.dtype != np.float32:
@@ -35,10 +38,15 @@ class FaissIndex:
             query = vector.reshape(1, -1)
         else:
             query = vector
-        _, indices = self._index.search(query, top_k)
+        distances, indices = self._index.search(query, top_k)
         hits: list[dict[str, Any]] = []
-        for idx in indices[0]:
+        for pos, idx in enumerate(indices[0]):
             if idx < 0:
                 continue
-            hits.append(self._metadata[int(idx)])
+            hits.append(
+                {
+                    "metadata": self._metadata[int(idx)],
+                    "distance": float(distances[0][pos]),
+                }
+            )
         return hits

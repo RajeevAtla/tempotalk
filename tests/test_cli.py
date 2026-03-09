@@ -1,6 +1,8 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 from tempus_copilot.cli import main, run
 from tempus_copilot.config import load_settings
 
@@ -25,3 +27,11 @@ def test_cli_validate_output_command_returns_zero(tmp_path: Path) -> None:
     finally:
         sys.argv = original
     assert code == 0
+
+
+def test_cli_fail_on_low_confidence_raises(tmp_path: Path) -> None:
+    settings = load_settings(Path("config/defaults.toml")).model_copy(
+        update={"output_dir": tmp_path}
+    )
+    with pytest.raises(ValueError):
+        run(settings, fail_on_low_confidence=0.95)

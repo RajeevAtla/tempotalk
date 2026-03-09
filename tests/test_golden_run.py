@@ -84,3 +84,4 @@ def test_golden_run_outputs_match_fixtures(tmp_path: Path) -> None:
         result.meeting_scripts_path.read_text(encoding="utf-8")
         == Path("tests/fixtures/golden/meeting_scripts.toml").read_text(encoding="utf-8")
     )
+    assert result.retrieval_debug_path.exists()
