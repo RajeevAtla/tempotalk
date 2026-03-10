@@ -29,7 +29,8 @@ def test_cli_validate_output_command_returns_zero(tmp_path: Path) -> None:
     assert code == 0
 
 
-def test_cli_fail_on_low_confidence_raises(tmp_path: Path) -> None:
+def test_cli_fail_on_low_confidence_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
     settings = load_settings(Path("config/defaults.toml")).model_copy(
         update={"output_dir": tmp_path}
     )

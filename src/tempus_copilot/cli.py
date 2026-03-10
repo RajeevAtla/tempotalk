@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 from tempus_copilot.config import Settings, load_settings
 from tempus_copilot.output_schema import validate_run_outputs
 from tempus_copilot.pipeline import run_pipeline
@@ -22,6 +24,7 @@ def run(
 
 
 def main() -> int:
+    load_dotenv()
     parser = argparse.ArgumentParser(description="Tempus Sales Copilot CLI")
     subparsers = parser.add_subparsers(dest="command")
 
