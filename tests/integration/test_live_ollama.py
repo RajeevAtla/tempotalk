@@ -2,14 +2,15 @@ from os import getenv
 
 import pytest
 
-from tempus_copilot.llm.baml_adapter import BamlGenerationClient
+from tempus_copilot.llm.baml_adapter import OllamaGenerationClient
+
 
 pytestmark = pytest.mark.integration
 
 
-@pytest.mark.skipif(not getenv("GOOGLE_API_KEY"), reason="GOOGLE_API_KEY not set")
-def test_live_baml_gemini_generation_round_trip() -> None:
-    client = BamlGenerationClient()
+@pytest.mark.skipif(not getenv("RUN_OLLAMA_INTEGRATION"), reason="RUN_OLLAMA_INTEGRATION not set")
+def test_live_ollama_generation_round_trip() -> None:
+    client = OllamaGenerationClient(model="qwen3.5:0.8b")
     objection = client.generate_objection_handler(
         provider_id="P001",
         concern="turnaround_time",

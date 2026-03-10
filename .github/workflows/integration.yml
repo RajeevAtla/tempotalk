@@ -15,5 +15,6 @@ jobs:
         run: uv run baml-cli generate
       - name: Run integration tests
         env:
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          RUN_OLLAMA_INTEGRATION: ${{ secrets.RUN_OLLAMA_INTEGRATION }}
+          OLLAMA_BASE_URL: ${{ secrets.OLLAMA_BASE_URL }}
         run: uv run pytest -q -m integration

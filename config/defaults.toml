@@ -5,10 +5,10 @@ kb_markdown = "data/mock/product_kb.md"
 output_dir = "outputs"
 
 [models]
-generation_provider = "google"
-generation_model = "gemini-2.5-flash"
-embedding_provider = "google"
-embedding_model = "gemini-embedding-001"
+generation_provider = "ollama"
+generation_model = "qwen3.5:0.8b"
+embedding_provider = "ollama"
+embedding_model = "qwen3-embedding:0.6b"
 
 [ranking.weights]
 patient_volume = 0.45

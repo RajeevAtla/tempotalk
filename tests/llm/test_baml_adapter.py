@@ -1,6 +1,11 @@
+import sys
+from types import ModuleType
 from types import SimpleNamespace
 
-from tempus_copilot.llm.baml_adapter import BamlGenerationClient
+import pytest
+
+from tempus_copilot.llm import baml_adapter as baml_adapter_module
+from tempus_copilot.llm.baml_adapter import BamlGenerationClient, get_default_generation_client
 
 
 class FakeBamlClient:
@@ -115,3 +120,39 @@ def test_baml_adapter_falls_back_after_retries_exhausted() -> None:
     )
     assert "response based on" in objection.response
     assert "pitch using" in script.script
+
+
+def test_baml_adapter_uses_default_generated_client_when_not_provided(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_module = ModuleType("baml_client.sync_client")
+    fake_default_client = object()
+    fake_module.b = fake_default_client
+    monkeypatch.setitem(sys.modules, "baml_client.sync_client", fake_module)
+    adapter = BamlGenerationClient(client=None)
+    assert adapter._client is fake_default_client
+
+
+def test_baml_adapter_invoke_missing_method_raises_attribute_error() -> None:
+    adapter = BamlGenerationClient(client=object())
+    with pytest.raises(AttributeError):
+        adapter._invoke("GenerateObjectionHandler", {})
+
+
+def test_baml_adapter_call_with_retry_internal_runtime_error_branch() -> None:
+    adapter = BamlGenerationClient(client=FakeBamlClient())
+    adapter._max_retries = -1
+    with pytest.raises(RuntimeError):
+        adapter._call_with_retry(lambda **_: "ok", {})
+
+
+def test_get_default_generation_client_selects_baml_when_api_key_present(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class SentinelClient:
+        pass
+
+    monkeypatch.setattr(baml_adapter_module, "getenv", lambda _: "set")
+    monkeypatch.setattr(baml_adapter_module, "BamlGenerationClient", SentinelClient)
+    client = get_default_generation_client()
+    assert isinstance(client, SentinelClient)

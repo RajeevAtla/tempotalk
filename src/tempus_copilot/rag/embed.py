@@ -89,3 +89,37 @@ class FallbackEmbeddingClient:
             return self._primary.embed_texts(texts)
         except httpx.HTTPError:
             return self._fallback.embed_texts(texts)
+
+
+class OllamaEmbeddingClient:
+    def __init__(self, model: str, request_retries: int = 2, backoff_seconds: float = 0.5) -> None:
+        self._model = model
+        self._request_retries = max(0, request_retries)
+        self._backoff_seconds = max(0.0, backoff_seconds)
+        self._base_url = (getenv("OLLAMA_BASE_URL") or "http://127.0.0.1:11434").rstrip("/")
+
+    def embed_texts(self, texts: list[str]) -> np.ndarray:
+        if not texts:
+            return np.empty((0, 0), dtype=np.float32)
+        response: httpx.Response | None = None
+        for attempt in range(self._request_retries + 1):
+            try:
+                response = httpx.post(
+                    f"{self._base_url}/api/embed",
+                    json={"model": self._model, "input": texts},
+                    timeout=30.0,
+                )
+                response.raise_for_status()
+                break
+            except httpx.HTTPError:
+                if attempt >= self._request_retries:
+                    raise
+                sleep(self._backoff_seconds * (attempt + 1))
+        if response is None:
+            raise RuntimeError("Ollama embedding request failed without response")
+        data = response.json()
+        embeddings = data.get("embeddings")
+        if embeddings is None:
+            single = data.get("embedding")
+            embeddings = [single] if single is not None else []
+        return np.asarray(embeddings, dtype=np.float32)

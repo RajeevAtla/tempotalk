@@ -22,7 +22,7 @@ function GenerateObjectionHandler(
   citation_ids: string[],
   observed_metrics: string[]
 ) -> ObjectionHandler {
-  client "google-ai/gemini-2.5-flash"
+  client "ollama/qwen3.5:0.8b"
   prompt #"
 You are a Tempus Sales Copilot assistant.
 Return ONLY a valid JSON object that matches this exact schema:
@@ -51,7 +51,7 @@ function GenerateMeetingScript(
   kb_context: string,
   citation_ids: string[]
 ) -> MeetingScript {
-  client "google-ai/gemini-2.5-flash"
+  client "ollama/qwen3.5:0.8b"
   prompt #"
 You are a Tempus Sales Copilot assistant.
 Return ONLY a valid JSON object that matches this exact schema:

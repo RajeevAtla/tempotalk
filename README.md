@@ -17,20 +17,28 @@ uv run python -m scripts.run_cli run --config config/defaults.toml --strict-cita
 uv run python -m scripts.run_cli validate-output outputs/run_YYYYMMDD_HHMMSS
 ```
 
-Run optional live Gemini integration tests:
+Run optional live Ollama integration tests:
 
 ```bash
 uv run pytest -q -m integration
 ```
 
-## Gemini Setup
+## Ollama Setup
 
-Set `GOOGLE_API_KEY` to enable:
+Start Ollama and pull required models:
 
-- BAML generation via `gemini-2.5-flash`
-- Gemini embeddings via `gemini-embedding-001`
+```bash
+ollama pull qwen3.5:0.8b
+ollama pull qwen3-embedding:0.6b
+```
 
-If `GOOGLE_API_KEY` is not set, the CLI falls back to deterministic local stubs for generation and embeddings.
+Optional env override:
+
+```bash
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+```
+
+If Ollama is unavailable, the CLI falls back to deterministic local stubs for generation and embeddings.
 
 ## Mock Data
 

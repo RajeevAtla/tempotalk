@@ -22,6 +22,7 @@ from tempus_copilot.rag.embed import (
     FallbackEmbeddingClient,
     GeminiEmbeddingClient,
     HashEmbeddingClient,
+    OllamaEmbeddingClient,
 )
 from tempus_copilot.rag.faiss_index import FaissIndex
 from tempus_copilot.ranking.score import rank_providers
@@ -141,7 +142,8 @@ def _build_query_text(provider_id: str, tumor_focus: str, concern: str) -> str:
 
 def _default_embedding_client(settings: Settings) -> EmbeddingClient:
     fallback = HashEmbeddingClient(dimension=settings.rag.embedding_dimension)
-    if settings.models.embedding_provider == "google":
+    provider = settings.models.embedding_provider.lower().strip()
+    if provider == "google":
         try:
             primary = GeminiEmbeddingClient(
                 model=settings.models.embedding_model,
@@ -151,6 +153,13 @@ def _default_embedding_client(settings: Settings) -> EmbeddingClient:
             return FallbackEmbeddingClient(primary=primary, fallback=fallback)
         except RuntimeError:
             return fallback
+    if provider == "ollama":
+        primary = OllamaEmbeddingClient(
+            model=settings.models.embedding_model,
+            request_retries=settings.rag.request_retries,
+            backoff_seconds=settings.rag.backoff_seconds,
+        )
+        return FallbackEmbeddingClient(primary=primary, fallback=fallback)
     return fallback
 
 
@@ -187,7 +196,12 @@ def run_pipeline(
         calibration=settings.ranking_calibration,
     )
     embedder = embedding_client or _default_embedding_client(settings)
-    generator = generation_client or get_default_generation_client()
+    generator = generation_client or get_default_generation_client(
+        generation_provider=settings.models.generation_provider,
+        generation_model=settings.models.generation_model,
+        request_retries=settings.rag.request_retries,
+        backoff_seconds=settings.rag.backoff_seconds,
+    )
     enforce_strict = (
         settings.output.strict_citations if strict_citations is None else strict_citations
     )
