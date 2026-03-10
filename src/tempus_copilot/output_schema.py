@@ -1,3 +1,5 @@
+"""Validation helpers for schema-versioned pipeline outputs."""
+
 from __future__ import annotations
 
 import tomllib
@@ -19,10 +21,27 @@ REQUIRED_TOP_LEVEL = {
 
 
 def parse_toml(path: Path) -> dict[str, object]:
+    """Parses a TOML file into a plain mapping.
+
+    Args:
+        path: Path to the TOML file.
+
+    Returns:
+        Parsed top-level payload.
+    """
     return tomllib.loads(path.read_text(encoding="utf-8"))
 
 
 def compute_output_checksum(run_dir: Path) -> str:
+    """Computes the canonical checksum for user-facing run artifacts.
+
+    Args:
+        run_dir: Directory containing pipeline output files.
+
+    Returns:
+        SHA-256 checksum over ranked, objection, and script outputs.
+    """
+    # The checksum intentionally tracks only the user-facing generated artifacts.
     ranked = (run_dir / "ranked_providers.toml").read_text(encoding="utf-8")
     objections = (run_dir / "objection_handlers.toml").read_text(encoding="utf-8")
     scripts = (run_dir / "meeting_scripts.toml").read_text(encoding="utf-8")
@@ -30,6 +49,14 @@ def compute_output_checksum(run_dir: Path) -> str:
 
 
 def validate_run_outputs(run_dir: Path) -> list[str]:
+    """Validates required files, top-level keys, and checksum integrity.
+
+    Args:
+        run_dir: Directory containing pipeline output files.
+
+    Returns:
+        Validation error messages. An empty list means the run is valid.
+    """
     errors: list[str] = []
     for file_name, keys in REQUIRED_TOP_LEVEL.items():
         path = run_dir / file_name

@@ -1,3 +1,5 @@
+"""Thin wrapper that makes the package CLI importable from the repo root."""
+
 from __future__ import annotations
 
 import sys
@@ -10,6 +12,11 @@ if str(SRC) not in sys.path:
 
 
 def run() -> int:
+    """Runs the package CLI after bootstrapping the import path.
+
+    Returns:
+        Process exit code from the package CLI.
+    """
     from tempus_copilot.cli import main
 
     return main()

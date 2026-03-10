@@ -1,3 +1,5 @@
+"""Tests for ui service."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -28,12 +30,16 @@ from tests.helpers.output_builders import write_valid_run_dir
 
 
 def test_load_ui_settings_uses_config_loader() -> None:
+    """Test load ui settings uses config loader.
+    """
     settings = load_ui_settings(Path("config/defaults.toml"))
     expected = load_settings(Path("config/defaults.toml"))
     assert settings == expected
 
 
 def test_load_default_settings_uses_same_loader() -> None:
+    """Test load default settings uses same loader.
+    """
     from tempus_copilot.ui_service import load_default_settings
 
     assert load_default_settings(Path("config/defaults.toml")) == load_settings(
@@ -42,6 +48,8 @@ def test_load_default_settings_uses_same_loader() -> None:
 
 
 def test_apply_settings_overrides_updates_nested_models() -> None:
+    """Test apply settings overrides updates nested models.
+    """
     settings = load_settings(Path("config/defaults.toml"))
     updated = apply_settings_overrides(
         settings,
@@ -65,6 +73,8 @@ def test_apply_settings_overrides_updates_nested_models() -> None:
 
 
 def test_apply_settings_overrides_updates_all_supported_fields() -> None:
+    """Test apply settings overrides updates all supported fields.
+    """
     settings = load_settings(Path("config/defaults.toml"))
     updated = apply_settings_overrides(
         settings,
@@ -95,14 +105,28 @@ def test_apply_settings_overrides_updates_all_supported_fields() -> None:
 def test_run_pipeline_from_ui_applies_overrides_and_controls(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Test run pipeline from ui applies overrides and controls.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     calls: dict[str, object] = {}
     settings = load_settings(Path("config/defaults.toml"))
 
     def fake_load(config_path: Path) -> object:
+        """Fake load.
+        
+        Args:
+            config_path: Filesystem path for config path.
+        
+        Returns:
+            Computed result.
+        """
         calls["config_path"] = config_path
         return settings
 
     class _Result:
+        """Result."""
         run_dir = Path("outputs/run_test")
 
     def fake_run_pipeline(
@@ -111,6 +135,16 @@ def test_run_pipeline_from_ui_applies_overrides_and_controls(
         strict_citations: object,
         fail_on_low_confidence: object,
     ) -> object:
+        """Fake run pipeline.
+        
+        Args:
+            run_settings: Run settings.
+            strict_citations: Strict citations.
+            fail_on_low_confidence: Fail on low confidence.
+        
+        Returns:
+            Computed result.
+        """
         calls["settings"] = run_settings
         calls["strict_citations"] = strict_citations
         calls["fail_on_low_confidence"] = fail_on_low_confidence
@@ -137,9 +171,15 @@ def test_run_pipeline_from_ui_applies_overrides_and_controls(
 def test_run_pipeline_from_ui_uses_default_controls_when_none(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Test run pipeline from ui uses default controls when none.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     settings = load_settings(Path("config/defaults.toml"))
 
     class ResultStub:
+        """Result stub."""
         run_dir = Path("outputs/run_default")
 
     captured: dict[str, object] = {}
@@ -152,6 +192,16 @@ def test_run_pipeline_from_ui_uses_default_controls_when_none(
         strict_citations: object,
         fail_on_low_confidence: object,
     ) -> ResultStub:
+        """Fake run pipeline.
+        
+        Args:
+            run_settings: Run settings.
+            strict_citations: Strict citations.
+            fail_on_low_confidence: Fail on low confidence.
+        
+        Returns:
+            Computed result.
+        """
         captured["settings"] = run_settings
         captured["strict_citations"] = strict_citations
         captured["fail_on_low_confidence"] = fail_on_low_confidence
@@ -168,6 +218,8 @@ def test_run_pipeline_from_ui_uses_default_controls_when_none(
 
 
 def test_apply_settings_overrides_noop_returns_same_values() -> None:
+    """Test apply settings overrides noop returns same values.
+    """
     settings = load_settings(Path("config/defaults.toml"))
 
     updated = apply_settings_overrides(settings, SettingsOverride())
@@ -176,6 +228,11 @@ def test_apply_settings_overrides_noop_returns_same_values() -> None:
 
 
 def test_discover_run_dirs_returns_sorted_run_directories(tmp_path: Path) -> None:
+    """Test discover run dirs returns sorted run directories.
+    
+    Args:
+        tmp_path: Temporary path provided by pytest.
+    """
     (tmp_path / "run_20260310_010000").mkdir()
     (tmp_path / "run_20260309_235959").mkdir()
     (tmp_path / "notes").mkdir()
@@ -187,18 +244,33 @@ def test_discover_run_dirs_returns_sorted_run_directories(tmp_path: Path) -> Non
 
 
 def test_most_recent_run_dir_returns_latest_run(tmp_path: Path) -> None:
+    """Test most recent run dir returns latest run.
+    
+    Args:
+        tmp_path: Temporary path provided by pytest.
+    """
     (tmp_path / "run_20260310_010000").mkdir()
     (tmp_path / "run_20260309_235959").mkdir()
     assert most_recent_run_dir(tmp_path) == tmp_path / "run_20260310_010000"
 
 
 def test_discover_and_recent_run_handle_missing_output_dir(tmp_path: Path) -> None:
+    """Test discover and recent run handle missing output dir.
+    
+    Args:
+        tmp_path: Temporary path provided by pytest.
+    """
     missing = tmp_path / "missing"
     assert discover_run_dirs(missing) == []
     assert most_recent_run_dir(missing) is None
 
 
 def test_validate_run_summary_returns_errors_for_invalid_run(tmp_path: Path) -> None:
+    """Test validate run summary returns errors for invalid run.
+    
+    Args:
+        tmp_path: Temporary path provided by pytest.
+    """
     run_dir = tmp_path / "run_invalid"
     run_dir.mkdir()
     summary = validate_run_summary(run_dir)
@@ -208,6 +280,11 @@ def test_validate_run_summary_returns_errors_for_invalid_run(tmp_path: Path) -> 
 
 
 def test_load_run_summary_parses_outputs_into_display_rows(tmp_path: Path) -> None:
+    """Test load run summary parses outputs into display rows.
+    
+    Args:
+        tmp_path: Temporary path provided by pytest.
+    """
     run_dir = tmp_path / "run_20260310_101010"
     write_valid_run_dir(run_dir)
     ranked = {
@@ -289,6 +366,11 @@ def test_load_run_summary_parses_outputs_into_display_rows(tmp_path: Path) -> No
 
 
 def test_load_validation_report_groups_file_statuses_and_checksum(tmp_path: Path) -> None:
+    """Test load validation report groups file statuses and checksum.
+    
+    Args:
+        tmp_path: Temporary path provided by pytest.
+    """
     run_dir = tmp_path / "run_20260310_121212"
     write_valid_run_dir(run_dir)
     metadata = {
@@ -309,6 +391,11 @@ def test_load_validation_report_groups_file_statuses_and_checksum(tmp_path: Path
 
 
 def test_load_validation_report_marks_missing_files_and_keys(tmp_path: Path) -> None:
+    """Test load validation report marks missing files and keys.
+    
+    Args:
+        tmp_path: Temporary path provided by pytest.
+    """
     from tempus_copilot import ui_service
 
     run_dir = tmp_path / "run_20260310_131313"
@@ -343,6 +430,11 @@ def test_load_validation_report_marks_missing_files_and_keys(tmp_path: Path) -> 
 
 
 def test_list_artifact_files_returns_expected_download_entries(tmp_path: Path) -> None:
+    """Test list artifact files returns expected download entries.
+    
+    Args:
+        tmp_path: Temporary path provided by pytest.
+    """
     run_dir = tmp_path / "run_20260310_101010"
     write_valid_run_dir(run_dir)
 
@@ -354,6 +446,11 @@ def test_list_artifact_files_returns_expected_download_entries(tmp_path: Path) -
 
 
 def test_list_artifact_files_reports_missing_entries(tmp_path: Path) -> None:
+    """Test list artifact files reports missing entries.
+    
+    Args:
+        tmp_path: Temporary path provided by pytest.
+    """
     run_dir = tmp_path / "run_missing"
     run_dir.mkdir()
 
@@ -363,6 +460,11 @@ def test_list_artifact_files_reports_missing_entries(tmp_path: Path) -> None:
 
 
 def test_load_run_summary_handles_missing_files(tmp_path: Path) -> None:
+    """Test load run summary handles missing files.
+    
+    Args:
+        tmp_path: Temporary path provided by pytest.
+    """
     run_dir = tmp_path / "run_empty"
     run_dir.mkdir()
     summary = load_run_summary(run_dir)
@@ -375,6 +477,11 @@ def test_load_run_summary_handles_missing_files(tmp_path: Path) -> None:
 
 
 def test_load_run_bundle_populates_validation_and_artifacts(tmp_path: Path) -> None:
+    """Test load run bundle populates validation and artifacts.
+    
+    Args:
+        tmp_path: Temporary path provided by pytest.
+    """
     run_dir = tmp_path / "run_bundle"
     write_valid_run_dir(run_dir)
 
@@ -387,6 +494,11 @@ def test_load_run_bundle_populates_validation_and_artifacts(tmp_path: Path) -> N
 
 
 def test_summarize_runs_uses_metadata_and_counts(tmp_path: Path) -> None:
+    """Test summarize runs uses metadata and counts.
+    
+    Args:
+        tmp_path: Temporary path provided by pytest.
+    """
     from tempus_copilot.ui_service import summarize_runs
 
     run_dir = tmp_path / "run_20260310_222222"
@@ -460,6 +572,8 @@ def test_summarize_runs_uses_metadata_and_counts(tmp_path: Path) -> None:
 
 
 def test_private_helpers_cover_coercion_edges() -> None:
+    """Test private helpers cover coercion edges.
+    """
     from tempus_copilot import ui_service
 
     assert ui_service._get_mapping("not-a-dict") == {}
@@ -480,6 +594,11 @@ def test_private_helpers_cover_coercion_edges() -> None:
 
 
 def test_private_helpers_cover_payload_and_mapping_edges(tmp_path: Path) -> None:
+    """Test private helpers cover payload and mapping edges.
+    
+    Args:
+        tmp_path: Temporary path provided by pytest.
+    """
     from tempus_copilot import ui_service
 
     payload_path = tmp_path / "payload.toml"
@@ -495,6 +614,11 @@ def test_private_helpers_cover_payload_and_mapping_edges(tmp_path: Path) -> None
 
 
 def test_load_metadata_handles_optional_and_invalid_types(tmp_path: Path) -> None:
+    """Test load metadata handles optional and invalid types.
+    
+    Args:
+        tmp_path: Temporary path provided by pytest.
+    """
     from tempus_copilot import ui_service
 
     run_dir = tmp_path / "run_metadata"
@@ -524,6 +648,11 @@ def test_load_metadata_handles_optional_and_invalid_types(tmp_path: Path) -> Non
 
 
 def test_load_metadata_ignores_invalid_optional_types(tmp_path: Path) -> None:
+    """Test load metadata ignores invalid optional types.
+    
+    Args:
+        tmp_path: Temporary path provided by pytest.
+    """
     from tempus_copilot import ui_service
 
     run_dir = tmp_path / "run_metadata_invalid"
@@ -552,6 +681,8 @@ def test_load_metadata_ignores_invalid_optional_types(tmp_path: Path) -> None:
 
 
 def test_dataclass_properties_cover_branchless_helpers() -> None:
+    """Test dataclass properties cover branchless helpers.
+    """
     artifact = ArtifactFileView(
         file_name="ranked_providers.toml",
         label="Ranked Providers",

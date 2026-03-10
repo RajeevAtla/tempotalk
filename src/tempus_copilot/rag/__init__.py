@@ -1,1 +1,1 @@
-"""RAG utilities."""
+"""Retrieval-augmented generation utilities."""

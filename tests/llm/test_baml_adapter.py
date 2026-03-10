@@ -1,3 +1,5 @@
+"""Unit tests for the handwritten Ollama generation adapter."""
+
 from __future__ import annotations
 
 from typing import cast
@@ -13,11 +15,15 @@ from tempus_copilot.llm.baml_adapter import (
 
 
 class FakeResponse:
+    """Mimic an httpx response with a configurable payload."""
+
     def __init__(self, payload: object, status_code: int = 200) -> None:
+        """Store the fake payload and status code."""
         self._payload = payload
         self.status_code = status_code
 
     def raise_for_status(self) -> None:
+        """Raise an HTTPStatusError for non-success responses."""
         if self.status_code >= 400:
             raise httpx.HTTPStatusError(
                 "error",
@@ -26,24 +32,28 @@ class FakeResponse:
             )
 
     def json(self) -> dict[str, object]:
+        """Return the payload as a dictionary."""
         if not isinstance(self._payload, dict):
             raise ValueError("payload must be a dict")
         return cast(dict[str, object], self._payload)
 
 
 def make_client(monkeypatch: pytest.MonkeyPatch) -> OllamaGenerationClient:
+    """Create a generation client configured for tests."""
     monkeypatch.setenv("OLLAMA_API_KEY", "test-key")
     monkeypatch.setenv("OLLAMA_BASE_URL", "https://ollama.com")
     return OllamaGenerationClient(model="ministral-3:8b")
 
 
 def test_normalize_base_url_variants() -> None:
+    """Normalize valid cloud URLs and reject insecure ones."""
     assert adapter_module._normalize_base_url("https://ollama.com/") == "https://ollama.com"
     with pytest.raises(ValueError):
         adapter_module._normalize_base_url("http://ollama.com")
 
 
 def test_extract_json_payload_handles_fences_prose_and_sanitization() -> None:
+    """Parse fenced, prose-wrapped, and sanitized JSON payloads."""
     fenced = '```json\n{"response":"ok"}\n```'
     prose = 'before {"citations":["kb:1"]} after'
     broken = '{\x00"confidence":"0.7"}'
@@ -55,10 +65,12 @@ def test_extract_json_payload_handles_fences_prose_and_sanitization() -> None:
 
 
 def test_extract_json_payload_handles_short_fence_form() -> None:
+    """Handle a short fenced payload without a closing fence block."""
     assert adapter_module._extract_json_payload('```{"fixed": true}') == {"fixed": True}
 
 
 def test_coerce_helpers_cover_mixed_inputs() -> None:
+    """Normalize mixed string-list and confidence payload shapes."""
     assert adapter_module._coerce_string_list("nope") == []
     assert adapter_module._coerce_string_list(["a", 1, "b"]) == ["a", "b"]
     assert adapter_module._coerce_confidence("0.5") == 0.5
@@ -71,6 +83,7 @@ def test_coerce_helpers_cover_mixed_inputs() -> None:
 
 
 def test_ollama_generation_client_requires_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Require an API key for cloud generation."""
     monkeypatch.delenv("OLLAMA_API_KEY", raising=False)
     with pytest.raises(RuntimeError):
         OllamaGenerationClient(model="ministral-3:8b")
@@ -79,6 +92,7 @@ def test_ollama_generation_client_requires_api_key(monkeypatch: pytest.MonkeyPat
 def test_ollama_generation_client_rejects_localhost_base_url(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Reject localhost generation endpoints."""
     monkeypatch.setenv("OLLAMA_API_KEY", "test-key")
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
     with pytest.raises(ValueError):
@@ -88,6 +102,7 @@ def test_ollama_generation_client_rejects_localhost_base_url(
 def test_chat_json_raises_for_missing_message_and_non_string_content(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Reject malformed chat response payloads."""
     client = make_client(monkeypatch)
     monkeypatch.setattr(client, "_post_chat", lambda payload: {})
     with pytest.raises(ValueError, match="missing message"):
@@ -105,6 +120,7 @@ def test_chat_json_raises_for_missing_message_and_non_string_content(
 def test_chat_json_uses_repair_path_on_malformed_payload(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Repair malformed model output once before giving up."""
     client = make_client(monkeypatch)
     monkeypatch.setattr(
         client,
@@ -121,6 +137,7 @@ def test_chat_json_uses_repair_path_on_malformed_payload(
 
 
 def test_post_chat_raises_after_retry_exhaustion(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Raise the last HTTP error after retry exhaustion."""
     client = make_client(monkeypatch)
     monkeypatch.setattr(
         adapter_module.httpx,
@@ -135,6 +152,7 @@ def test_post_chat_raises_after_retry_exhaustion(monkeypatch: pytest.MonkeyPatch
 def test_post_chat_runtime_error_when_retry_loop_is_skipped(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Raise when no response object is ever assigned."""
     client = make_client(monkeypatch)
     monkeypatch.setattr(adapter_module, "range", lambda count: [], raising=False)
     with pytest.raises(RuntimeError, match="without response"):
@@ -144,6 +162,7 @@ def test_post_chat_runtime_error_when_retry_loop_is_skipped(
 def test_repair_json_content_validates_response_shape(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Require the repair endpoint to return a standard chat payload."""
     client = make_client(monkeypatch)
     monkeypatch.setattr(client, "_post_chat", lambda payload: {})
     with pytest.raises(ValueError, match="missing message"):
@@ -159,6 +178,7 @@ def test_repair_json_content_validates_response_shape(
 
 
 def test_repair_json_content_returns_string_on_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Return repaired content when the response shape is valid."""
     client = make_client(monkeypatch)
     monkeypatch.setattr(
         client,
@@ -169,6 +189,7 @@ def test_repair_json_content_returns_string_on_success(monkeypatch: pytest.Monke
 
 
 def test_generation_falls_back_when_chat_json_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Return deterministic fallback artifacts when JSON generation fails."""
     client = make_client(monkeypatch)
     monkeypatch.setattr(
         client,
@@ -200,6 +221,7 @@ def test_generation_falls_back_when_chat_json_fails(monkeypatch: pytest.MonkeyPa
 def test_generation_coerces_malformed_success_payloads(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Coerce partially malformed success payloads into artifacts."""
     client = make_client(monkeypatch)
     payloads = [
         {
@@ -236,6 +258,7 @@ def test_generation_coerces_malformed_success_payloads(
 
 
 def test_ollama_generation_client_generates_artifacts(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Generate objection and script artifacts from valid chat payloads."""
     monkeypatch.setenv("OLLAMA_API_KEY", "test-key")
     monkeypatch.setenv("OLLAMA_BASE_URL", "https://ollama.com")
     payloads = [
@@ -257,6 +280,15 @@ def test_ollama_generation_client_generates_artifacts(monkeypatch: pytest.Monkey
     ]
 
     def fake_post(*args: object, **kwargs: object) -> FakeResponse:
+        """Fake post.
+        
+        Args:
+            args: Args.
+            kwargs: Kwargs.
+        
+        Returns:
+            Computed result.
+        """
         return FakeResponse(payloads.pop(0))
 
     monkeypatch.setattr(adapter_module.httpx, "post", fake_post)
@@ -282,11 +314,21 @@ def test_ollama_generation_client_generates_artifacts(monkeypatch: pytest.Monkey
 def test_ollama_generation_client_retries_on_http_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Retry generation after an HTTP error and succeed on a later attempt."""
     monkeypatch.setenv("OLLAMA_API_KEY", "test-key")
     monkeypatch.setenv("OLLAMA_BASE_URL", "https://ollama.com")
     calls = {"count": 0}
 
     def fake_post(*args: object, **kwargs: object) -> FakeResponse:
+        """Fake post.
+        
+        Args:
+            args: Args.
+            kwargs: Kwargs.
+        
+        Returns:
+            Computed result.
+        """
         calls["count"] += 1
         if calls["count"] == 1:
             raise httpx.HTTPError("temporary")
@@ -317,6 +359,7 @@ def test_ollama_generation_client_retries_on_http_error(
 
 
 def test_get_default_generation_client_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Create the default client for Ollama and reject other providers."""
     monkeypatch.setenv("OLLAMA_API_KEY", "test-key")
     monkeypatch.setenv("OLLAMA_BASE_URL", "https://ollama.com")
     client = get_default_generation_client(generation_provider="ollama")

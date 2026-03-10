@@ -1,3 +1,5 @@
+"""Typed domain models shared across ingestion, ranking, and output generation."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,6 +8,8 @@ from pydantic import BaseModel, Field
 
 
 class ProviderRecord(BaseModel):
+    """Represents one provider row from market intelligence."""
+
     provider_id: str
     physician_name: str
     specialty: str
@@ -18,6 +22,8 @@ class ProviderRecord(BaseModel):
 
 
 class CRMNote(BaseModel):
+    """Represents one prior-interaction note tied to a provider."""
+
     note_id: str
     provider_id: str
     timestamp: str
@@ -27,11 +33,15 @@ class CRMNote(BaseModel):
 
 
 class KBDocument(BaseModel):
+    """Represents one knowledge-base document after ingestion."""
+
     source: str
     text: str
 
 
 class RankingWeights(BaseModel):
+    """Stores scalar weights for provider ranking factors."""
+
     patient_volume: float = Field(ge=0)
     clinical_fit: float = Field(ge=0)
     objection_urgency: float = Field(ge=0)
@@ -39,11 +49,15 @@ class RankingWeights(BaseModel):
 
 
 class RankingCalibration(BaseModel):
+    """Stores calibration maps used by ranking heuristics."""
+
     concern_severity: dict[str, float]
     specialty_fit: dict[str, float]
 
 
 class RankedProvider(BaseModel):
+    """Captures the scored provider output written by the ranking stage."""
+
     provider_id: str
     physician_name: str
     institution: str
@@ -55,6 +69,8 @@ class RankedProvider(BaseModel):
 
 
 class ObjectionArtifact(BaseModel):
+    """Represents one generated objection handler artifact."""
+
     provider_id: str
     concern: str
     response: str
@@ -64,6 +80,8 @@ class ObjectionArtifact(BaseModel):
 
 
 class MeetingScriptArtifact(BaseModel):
+    """Represents one generated meeting script artifact."""
+
     provider_id: str
     tumor_focus: str
     script: str
@@ -72,6 +90,8 @@ class MeetingScriptArtifact(BaseModel):
 
 
 class PipelineResult(BaseModel):
+    """Collects the file paths produced by a pipeline run."""
+
     run_dir: Path
     ranked_providers_path: Path
     objection_handlers_path: Path

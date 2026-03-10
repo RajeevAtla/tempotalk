@@ -1,3 +1,5 @@
+"""Typed Ollama Cloud generation client used by the pipeline."""
+
 from __future__ import annotations
 
 import json
@@ -12,6 +14,8 @@ from tempus_copilot.models import MeetingScriptArtifact, ObjectionArtifact
 
 
 class GenerationClient(Protocol):
+    """Protocol for generation clients used during pipeline execution."""
+
     def generate_objection_handler(
         self,
         provider_id: str,
@@ -19,7 +23,20 @@ class GenerationClient(Protocol):
         kb_context: str,
         citation_ids: list[str],
         observed_metrics: list[str],
-    ) -> ObjectionArtifact: ...
+    ) -> ObjectionArtifact:
+        """Generate an objection-handling artifact for a provider.
+
+        Args:
+            provider_id: Provider identifier.
+            concern: CRM concern to address.
+            kb_context: Retrieved KB text supplied to the model.
+            citation_ids: Allowed citation identifiers from retrieval.
+            observed_metrics: Metrics extracted from the retrieval context.
+
+        Returns:
+            A typed objection-handling artifact.
+        """
+        ...
 
     def generate_meeting_script(
         self,
@@ -27,19 +44,37 @@ class GenerationClient(Protocol):
         tumor_focus: str,
         kb_context: str,
         citation_ids: list[str],
-    ) -> MeetingScriptArtifact: ...
+    ) -> MeetingScriptArtifact:
+        """Generate a meeting script artifact for a provider.
+
+        Args:
+            provider_id: Provider identifier.
+            tumor_focus: Provider tumor focus.
+            kb_context: Retrieved KB text supplied to the model.
+            citation_ids: Allowed citation identifiers from retrieval.
+
+        Returns:
+            A typed meeting script artifact.
+        """
+        ...
 
 
 class OllamaMessage(TypedDict):
+    """Chat message payload exchanged with Ollama."""
+
     role: str
     content: str
 
 
 class OllamaChatResponse(TypedDict, total=False):
+    """Subset of the Ollama chat response used by the client."""
+
     message: OllamaMessage
 
 
 class ObjectionPayload(TypedDict):
+    """Expected model payload for objection handling output."""
+
     response: str
     supporting_metrics: list[str]
     citations: list[str]
@@ -47,12 +82,25 @@ class ObjectionPayload(TypedDict):
 
 
 class ScriptPayload(TypedDict):
+    """Expected model payload for meeting script output."""
+
     script: str
     citations: list[str]
     confidence: float
 
 
 def _normalize_base_url(base_url: str) -> str:
+    """Validate and normalize the Ollama Cloud base URL.
+
+    Args:
+        base_url: Candidate base URL for the generation service.
+
+    Returns:
+        The normalized base URL without a trailing slash.
+
+    Raises:
+        ValueError: If the URL points to localhost or does not use HTTPS.
+    """
     parsed = urlparse(base_url)
     host = parsed.hostname or ""
     if host in {"localhost", "127.0.0.1"}:
@@ -63,7 +111,20 @@ def _normalize_base_url(base_url: str) -> str:
 
 
 def _extract_json_payload(text: str) -> dict[str, object]:
+    """Extract the first JSON object from model output text.
+
+    Args:
+        text: Raw model output.
+
+    Returns:
+        Parsed JSON object.
+
+    Raises:
+        ValueError: If the parsed payload is not a JSON object.
+        json.JSONDecodeError: If the content cannot be repaired into JSON.
+    """
     stripped = text.strip()
+    # Models sometimes wrap JSON in fences or preamble text even when asked not to.
     if stripped.startswith("```"):
         lines = stripped.splitlines()
         if len(lines) >= 3:
@@ -82,6 +143,14 @@ def _extract_json_payload(text: str) -> dict[str, object]:
 
 
 def _coerce_string_list(value: object) -> list[str]:
+    """Coerce a dynamic value into a list of strings.
+
+    Args:
+        value: Dynamic model field value.
+
+    Returns:
+        The string members of the input list, or an empty list.
+    """
     if not isinstance(value, list):
         return []
     out: list[str] = []
@@ -92,6 +161,14 @@ def _coerce_string_list(value: object) -> list[str]:
 
 
 def _coerce_confidence(value: object) -> float:
+    """Coerce a dynamic value into a confidence score.
+
+    Args:
+        value: Dynamic model field value.
+
+    Returns:
+        A floating-point confidence score.
+    """
     if isinstance(value, (int, float)):
         return float(value)
     if isinstance(value, str):
@@ -109,12 +186,25 @@ def _coerce_confidence(value: object) -> float:
 
 
 class OllamaGenerationClient:
+    """Generation client backed by Ollama Cloud chat completions."""
+
     def __init__(
         self,
         model: str,
         request_retries: int = 2,
         backoff_seconds: float = 0.5,
     ) -> None:
+        """Initialize the generation client.
+
+        Args:
+            model: Generation model name.
+            request_retries: Number of retry attempts after the initial request.
+            backoff_seconds: Base backoff delay between retries.
+
+        Raises:
+            RuntimeError: If the Ollama API key is missing.
+            ValueError: If the configured base URL violates runtime policy.
+        """
         api_key = getenv("OLLAMA_API_KEY")
         if not api_key:
             raise RuntimeError("OLLAMA_API_KEY is required for Ollama Cloud generation")
@@ -126,6 +216,19 @@ class OllamaGenerationClient:
         self._backoff_seconds = max(0.0, backoff_seconds)
 
     def _chat_json(self, system_prompt: str, user_prompt: str) -> dict[str, object]:
+        """Request a JSON response from the model.
+
+        Args:
+            system_prompt: System instructions for the model.
+            user_prompt: User payload passed to the model.
+
+        Returns:
+            Parsed JSON object from the model response.
+
+        Raises:
+            ValueError: If the Ollama response shape is invalid.
+            json.JSONDecodeError: If neither the original nor repaired content is valid JSON.
+        """
         payload = {
             "model": self._model,
             "stream": False,
@@ -145,10 +248,23 @@ class OllamaGenerationClient:
         try:
             return _extract_json_payload(content)
         except (json.JSONDecodeError, ValueError):
+            # One repair pass keeps the happy path strict without masking persistent failures.
             repaired = self._repair_json_content(content)
             return _extract_json_payload(repaired)
 
     def _post_chat(self, payload: dict[str, object]) -> OllamaChatResponse:
+        """Send a chat request with retry handling.
+
+        Args:
+            payload: JSON payload to send to Ollama.
+
+        Returns:
+            Parsed Ollama chat response.
+
+        Raises:
+            RuntimeError: If all attempts fail without returning a response object.
+            httpx.HTTPError: If the final request fails.
+        """
         response: httpx.Response | None = None
         for attempt in range(self._request_retries + 1):
             try:
@@ -169,6 +285,17 @@ class OllamaGenerationClient:
         return cast(OllamaChatResponse, response.json())
 
     def _repair_json_content(self, broken_content: str) -> str:
+        """Ask the model to repair malformed JSON.
+
+        Args:
+            broken_content: Model output that failed JSON parsing.
+
+        Returns:
+            Repaired JSON string content.
+
+        Raises:
+            ValueError: If the repair response shape is invalid.
+        """
         payload: dict[str, object] = {
             "model": self._model,
             "stream": False,
@@ -206,6 +333,18 @@ class OllamaGenerationClient:
         citation_ids: list[str],
         observed_metrics: list[str],
     ) -> ObjectionArtifact:
+        """Generate an objection-handling artifact for a provider.
+
+        Args:
+            provider_id: Provider identifier.
+            concern: CRM concern to address.
+            kb_context: Retrieved KB text supplied to the model.
+            citation_ids: Allowed citation identifiers from retrieval.
+            observed_metrics: Metrics extracted from the retrieval context.
+
+        Returns:
+            A typed objection-handling artifact.
+        """
         system_prompt = (
             "You are a clinical sales enablement assistant. "
             "Return strict JSON with keys: response, supporting_metrics, citations, confidence."
@@ -222,6 +361,8 @@ class OllamaGenerationClient:
             raw = self._chat_json(system_prompt=system_prompt, user_prompt=user_prompt)
             payload = cast(ObjectionPayload, raw)
         except (json.JSONDecodeError, ValueError, TypeError):
+            # Fall back to a deterministic template so the pipeline still
+            # produces reviewable output.
             return ObjectionArtifact(
                 provider_id=provider_id,
                 concern=concern,
@@ -248,6 +389,17 @@ class OllamaGenerationClient:
         kb_context: str,
         citation_ids: list[str],
     ) -> MeetingScriptArtifact:
+        """Generate a meeting script artifact for a provider.
+
+        Args:
+            provider_id: Provider identifier.
+            tumor_focus: Provider tumor focus.
+            kb_context: Retrieved KB text supplied to the model.
+            citation_ids: Allowed citation identifiers from retrieval.
+
+        Returns:
+            A typed meeting script artifact.
+        """
         system_prompt = (
             "You are a clinical sales enablement assistant. "
             "Return strict JSON with keys: script, citations, confidence."
@@ -263,6 +415,8 @@ class OllamaGenerationClient:
             raw = self._chat_json(system_prompt=system_prompt, user_prompt=user_prompt)
             payload = cast(ScriptPayload, raw)
         except (json.JSONDecodeError, ValueError, TypeError):
+            # Fall back to a deterministic template so the pipeline still
+            # produces reviewable output.
             return MeetingScriptArtifact(
                 provider_id=provider_id,
                 tumor_focus=tumor_focus,
@@ -288,6 +442,20 @@ def get_default_generation_client(
     request_retries: int = 2,
     backoff_seconds: float = 0.5,
 ) -> GenerationClient:
+    """Construct the default generation client for configured runtime policy.
+
+    Args:
+        generation_provider: Generation provider name.
+        generation_model: Generation model name.
+        request_retries: Number of retry attempts after the initial request.
+        backoff_seconds: Base backoff delay between retries.
+
+    Returns:
+        A configured generation client.
+
+    Raises:
+        ValueError: If the provider is unsupported.
+    """
     provider = generation_provider.lower().strip()
     if provider != "ollama":
         raise ValueError("Only 'ollama' generation_provider is supported")

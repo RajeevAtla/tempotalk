@@ -1,9 +1,12 @@
+"""Configuration loading tests."""
+
 from pathlib import Path
 
 from tempus_copilot.config import load_settings
 
 
 def test_load_settings_reads_toml() -> None:
+    """Verifies the default TOML configuration loads expected values."""
     settings = load_settings(Path("config/defaults.toml"))
     assert settings.models.generation_model == "ministral-3:8b"
     assert settings.rag.top_k == 4

@@ -1,3 +1,5 @@
+"""End-to-end orchestration for the TempoTalk ranking and generation pipeline."""
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -38,23 +40,37 @@ SCHEMA_VERSION = "1.0.0"
 
 
 def _baml_source_path() -> Path:
+    """Returns the checked-in BAML source path used for metadata hashes."""
+
     return Path("baml_src/sales_copilot.baml")
 
 
 def _compute_baml_hashes() -> tuple[str, str]:
+    """Returns schema and prompt hashes for the canonical BAML source."""
+
     hashes = compute_baml_hashes(_baml_source_path())
     return hashes.schema_hash, hashes.prompt_hash
 
 
 def _extract_metrics(text: str) -> list[str]:
+    """Extracts a short list of metric strings from retrieved context."""
+
     return extract_metrics(text)
 
 
 def _build_query_text(provider_id: str, tumor_focus: str, concern: str) -> str:
+    """Builds the retrieval query for one provider."""
+
     return build_query_text(provider_id, tumor_focus, concern)
 
 
 def _ensure_inputs(settings: Settings) -> None:
+    """Ensures required local input files exist before the run starts.
+
+    Args:
+        settings: Application settings containing input paths and mock settings.
+    """
+    # The prototype can self-seed its local fixtures, but only when any required input is missing.
     if settings.market_csv.exists() and settings.crm_csv.exists() and settings.kb_markdown.exists():
         return
     generate_mock_data(
@@ -70,6 +86,8 @@ def _enforce_citations(
     confidence: float,
     strict_citations: bool,
 ) -> tuple[list[str], float]:
+    """Applies citation policy to generated citations and confidence."""
+
     return enforce_citations(
         citations=citations,
         allowed=allowed,
@@ -79,6 +97,17 @@ def _enforce_citations(
 
 
 def _default_embedding_client(settings: Settings) -> EmbeddingClient:
+    """Builds the default embedding client from settings.
+
+    Args:
+        settings: Application settings containing embedding runtime config.
+
+    Returns:
+        Configured embedding client.
+
+    Raises:
+        ValueError: If the configured embedding provider is unsupported.
+    """
     provider = settings.models.embedding_provider.lower().strip()
     if provider != "ollama":
         raise ValueError("Only 'ollama' embedding_provider is supported")
@@ -94,6 +123,17 @@ def _resolve_runtime_clients(
     embedding_client: EmbeddingClient | None,
     generation_client: GenerationClient | None,
 ) -> tuple[EmbeddingClient, GenerationClient]:
+    """Resolves injected or default runtime clients for the pipeline.
+
+    Args:
+        settings: Application settings containing runtime config.
+        embedding_client: Optional injected embedding client.
+        generation_client: Optional injected generation client.
+
+    Returns:
+        Embedding and generation clients in runtime order.
+    """
+    # Injected clients keep tests local while defaults enforce the repo's runtime policy.
     embedder = embedding_client or _default_embedding_client(settings)
     generator = generation_client or get_default_generation_client(
         generation_provider=settings.models.generation_provider,
@@ -109,6 +149,16 @@ def _build_index(
     kb_chunks: Sequence[KBChunk],
     embedder: EmbeddingClient,
 ) -> FaissIndex:
+    """Builds the retrieval index for the current KB chunks.
+
+    Args:
+        settings: Application settings with retrieval controls.
+        kb_chunks: Chunked knowledge-base records.
+        embedder: Embedding client used to vectorize chunks.
+
+    Returns:
+        Populated FAISS index.
+    """
     chunk_vectors = build_chunk_vectors(
         list(kb_chunks),
         embedding_dimension=settings.rag.embedding_dimension,
@@ -120,6 +170,15 @@ def _build_index(
 
 
 def _write_ranked_providers(run_dir: Path, ranked: Sequence[RankedProvider]) -> Path:
+    """Writes ranked provider output for the current run.
+
+    Args:
+        run_dir: Directory for the current pipeline run.
+        ranked: Ranked provider records to serialize.
+
+    Returns:
+        Path to the written ranked provider artifact.
+    """
     ranked_path = run_dir / "ranked_providers.toml"
     write_toml(
         ranked_path,
@@ -153,10 +212,25 @@ def _run_generation(
     index: FaissIndex,
     strict_citations: bool,
 ) -> tuple[list[ObjectionRow], list[ScriptRow], list[RetrievalRow]]:
+    """Runs retrieval-backed generation for every provider.
+
+    Args:
+        providers: Providers to generate artifacts for.
+        notes: CRM notes available for concern detection.
+        settings: Application settings with retrieval controls.
+        embedder: Embedding client for provider queries.
+        generator: Generation client for objection and script artifacts.
+        index: Retrieval index over KB chunks.
+        strict_citations: Whether strict citation filtering is enabled.
+
+    Returns:
+        Objection rows, script rows, and retrieval debug rows.
+    """
     objection_rows: list[ObjectionRow] = []
     script_rows: list[ScriptRow] = []
     retrieval_rows: list[RetrievalRow] = []
     for provider in providers:
+        # Missing CRM history is still a valid path, so generation falls back to a generic concern.
         provider_notes = [note for note in notes if note.provider_id == provider.provider_id]
         concern = provider_notes[0].concern_type if provider_notes else "general"
         query_text = build_query_text(provider.provider_id, provider.tumor_focus, concern)
@@ -226,6 +300,17 @@ def _write_generation_outputs(
     script_rows: list[ScriptRow],
     retrieval_rows: list[RetrievalRow],
 ) -> tuple[Path, Path, Path]:
+    """Writes objection, script, and retrieval debug artifacts.
+
+    Args:
+        run_dir: Directory for the current pipeline run.
+        objection_rows: Serialized objection handler rows.
+        script_rows: Serialized meeting script rows.
+        retrieval_rows: Serialized retrieval debug rows.
+
+    Returns:
+        Paths to the written objection, script, and retrieval artifacts.
+    """
     objection_path = run_dir / "objection_handlers.toml"
     script_path = run_dir / "meeting_scripts.toml"
     retrieval_debug_path = run_dir / "retrieval_debug.toml"
@@ -259,7 +344,25 @@ def _write_metadata(
     kb_doc_count: int,
     kb_chunk_count: int,
 ) -> Path:
+    """Writes run metadata and checksum information.
+
+    Args:
+        run_dir: Directory for the current pipeline run.
+        ranked_path: Ranked providers artifact path.
+        objection_path: Objection handlers artifact path.
+        script_path: Meeting scripts artifact path.
+        settings: Application settings for model metadata.
+        provider_count: Number of provider input records.
+        note_count: Number of CRM note records.
+        kb_doc_count: Number of KB documents loaded.
+        kb_chunk_count: Number of KB chunks indexed.
+
+    Returns:
+        Path to the written metadata artifact.
+    """
     metadata_path = run_dir / "run_metadata.toml"
+    # Metadata records reproducibility details, but the output checksum stays anchored to the
+    # primary deliverables that downstream validators and reviewers consume.
     checksum = checksum_output_texts(
         ranked_path.read_text(encoding="utf-8"),
         objection_path.read_text(encoding="utf-8"),
@@ -292,6 +395,23 @@ def run_pipeline(
     strict_citations: bool | None = None,
     fail_on_low_confidence: float | None = None,
 ) -> PipelineResult:
+    """Runs the full ranking, retrieval, generation, and write pipeline.
+
+    Args:
+        settings: Application settings for the current run.
+        embedding_client: Optional injected embedding client.
+        generation_client: Optional injected generation client.
+        strict_citations: Optional override for citation enforcement.
+        fail_on_low_confidence: Optional minimum confidence threshold.
+
+    Returns:
+        Paths to the artifacts written by the run.
+
+    Raises:
+        ValueError: If the configured confidence threshold is violated.
+    """
+    # The pipeline writes ranked output first, then generation artifacts, so failed runs still
+    # leave enough state behind for debugging.
     _ensure_inputs(settings)
     providers = load_market_intelligence(settings.market_csv)
     notes = load_crm_notes(settings.crm_csv)

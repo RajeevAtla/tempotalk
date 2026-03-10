@@ -1,3 +1,5 @@
+"""Configuration models and loaders for TempoTalk."""
+
 from __future__ import annotations
 
 import tomllib
@@ -9,6 +11,8 @@ from tempus_copilot.models import RankingCalibration, RankingWeights
 
 
 class ModelSettings(BaseModel):
+    """Defines generation and embedding runtime settings."""
+
     generation_provider: str
     generation_model: str
     embedding_provider: str
@@ -16,6 +20,8 @@ class ModelSettings(BaseModel):
 
 
 class RagSettings(BaseModel):
+    """Configures chunking, retrieval, and embedding retry behavior."""
+
     chunk_size: int
     chunk_overlap: int
     top_k: int
@@ -25,10 +31,14 @@ class RagSettings(BaseModel):
 
 
 class OutputSettings(BaseModel):
+    """Controls output validation and citation policy."""
+
     strict_citations: bool = False
 
 
 class Settings(BaseModel):
+    """Collects the full application configuration surface."""
+
     market_csv: Path
     crm_csv: Path
     kb_markdown: Path
@@ -43,6 +53,15 @@ class Settings(BaseModel):
 
 
 def load_settings(path: Path) -> Settings:
+    """Loads typed settings from a TOML file.
+
+    Args:
+        path: Path to the TOML configuration file.
+
+    Returns:
+        Parsed application settings.
+    """
+    # Keep the loader explicit so config key changes fail near their source.
     with path.open("rb") as fh:
         raw = tomllib.load(fh)
     paths = raw["paths"]

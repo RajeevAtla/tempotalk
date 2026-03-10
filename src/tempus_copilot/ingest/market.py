@@ -1,3 +1,5 @@
+"""Load market-intelligence CSV data into provider records."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -8,6 +10,14 @@ from tempus_copilot.models import ProviderRecord
 
 
 def load_market_intelligence(path: Path) -> list[ProviderRecord]:
+    """Load market-intelligence rows from a CSV file.
+
+    Args:
+        path: Path to the market intelligence CSV file.
+
+    Returns:
+        A list of typed provider records parsed from the CSV.
+    """
     df = pl.read_csv(path)
     return [
         ProviderRecord(

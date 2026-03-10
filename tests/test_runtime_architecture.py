@@ -1,3 +1,5 @@
+"""Runtime architecture contract tests."""
+
 from __future__ import annotations
 
 import sys
@@ -15,6 +17,7 @@ def test_pipeline_uses_handwritten_generation_adapter_by_default(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verifies the pipeline resolves the handwritten generation adapter by default."""
     settings = load_settings(Path("config/defaults.toml")).model_copy(
         update={"output_dir": tmp_path}
     )
@@ -22,6 +25,11 @@ def test_pipeline_uses_handwritten_generation_adapter_by_default(
     calls = {"count": 0}
 
     def fake_default_generation_client(**_: object):
+        """Fake default generation client.
+        
+        Args:
+            _: _.
+        """
         calls["count"] += 1
         return expected_client
 
@@ -41,6 +49,7 @@ def test_pipeline_resolves_both_default_runtime_clients(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verifies both runtime clients are resolved from the active runtime path."""
     settings = load_settings(Path("config/defaults.toml")).model_copy(
         update={"output_dir": tmp_path}
     )
@@ -49,11 +58,21 @@ def test_pipeline_resolves_both_default_runtime_clients(
     calls = {"embedder": 0, "generator": 0}
 
     def fake_default_embedding_client(settings_obj):
+        """Fake default embedding client.
+        
+        Args:
+            settings_obj: Settings obj.
+        """
         calls["embedder"] += 1
         assert settings_obj is settings
         return expected_embedder
 
     def fake_default_generation_client(**kwargs: object):
+        """Fake default generation client.
+        
+        Args:
+            kwargs: Kwargs.
+        """
         calls["generator"] += 1
         assert kwargs["generation_model"] == settings.models.generation_model
         return expected_generator
@@ -76,6 +95,7 @@ def test_pipeline_resolves_both_default_runtime_clients(
 def test_pipeline_does_not_import_baml_client_for_runtime_execution(
     tmp_path: Path,
 ) -> None:
+    """Verifies runtime execution does not depend on the generated BAML client package."""
     settings = load_settings(Path("config/defaults.toml")).model_copy(
         update={"output_dir": tmp_path}
     )

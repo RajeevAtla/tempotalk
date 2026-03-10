@@ -1,3 +1,5 @@
+"""Configure test import paths for the local package."""
+
 from __future__ import annotations
 
 import sys

@@ -1,8 +1,11 @@
+"""Unit tests for provider ranking heuristics."""
+
 from tempus_copilot.models import CRMNote, ProviderRecord, RankingCalibration, RankingWeights
 from tempus_copilot.ranking.score import rank_providers
 
 
 def test_rank_providers_sorts_by_score_desc() -> None:
+    """Sort providers from highest to lowest composite score."""
     providers = [
         ProviderRecord(
             provider_id="P001",
@@ -66,6 +69,7 @@ def test_rank_providers_sorts_by_score_desc() -> None:
 
 
 def test_rank_providers_applies_calibration() -> None:
+    """Apply specialty and concern calibration terms to ranking."""
     providers = [
         ProviderRecord(
             provider_id="P001",

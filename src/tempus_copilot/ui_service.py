@@ -1,3 +1,5 @@
+"""Typed helpers that adapt pipeline outputs for the Streamlit frontend."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -19,6 +21,8 @@ ARTIFACT_LABELS = {
 
 
 class ProviderTableRow(TypedDict):
+    """Represents a provider row loaded from TOML."""
+
     provider_id: str
     physician_name: str
     institution: str
@@ -27,6 +31,8 @@ class ProviderTableRow(TypedDict):
 
 
 class ObjectionTableRow(TypedDict):
+    """Represents an objection row loaded from TOML."""
+
     provider_id: str
     concern: str
     response: str
@@ -36,6 +42,8 @@ class ObjectionTableRow(TypedDict):
 
 
 class MeetingScriptTableRow(TypedDict):
+    """Represents a meeting script row loaded from TOML."""
+
     provider_id: str
     tumor_focus: str
     script: str
@@ -44,18 +52,24 @@ class MeetingScriptTableRow(TypedDict):
 
 
 class RetrievalHitRow(TypedDict):
+    """Represents one retrieval hit row loaded from TOML."""
+
     chunk_id: str
     source: str
     distance: float
 
 
 class RetrievalTableRow(TypedDict):
+    """Represents retrieval debug output for one provider."""
+
     provider_id: str
     query_text: str
     retrieved: list[RetrievalHitRow]
 
 
 class RunMetadataView(TypedDict, total=False):
+    """Represents normalized run metadata for display."""
+
     schema_version: str
     generated_at_utc: str
     provider_count: int
@@ -71,6 +85,8 @@ class RunMetadataView(TypedDict, total=False):
 
 @dataclass(frozen=True)
 class RankedProviderView:
+    """Display model for a ranked provider."""
+
     provider_id: str
     physician_name: str
     institution: str
@@ -83,6 +99,8 @@ class RankedProviderView:
 
 @dataclass(frozen=True)
 class ObjectionView:
+    """Display model for an objection artifact."""
+
     provider_id: str
     concern: str
     response: str
@@ -93,6 +111,8 @@ class ObjectionView:
 
 @dataclass(frozen=True)
 class MeetingScriptView:
+    """Display model for a meeting script artifact."""
+
     provider_id: str
     tumor_focus: str
     script: str
@@ -102,6 +122,8 @@ class MeetingScriptView:
 
 @dataclass(frozen=True)
 class RetrievalHitView:
+    """Display model for one retrieval hit."""
+
     chunk_id: str
     source: str
     distance: float
@@ -109,6 +131,8 @@ class RetrievalHitView:
 
 @dataclass(frozen=True)
 class RetrievalDebugView:
+    """Display model for retrieval debug output."""
+
     provider_id: str
     query_text: str
     retrieved: list[RetrievalHitView]
@@ -116,6 +140,8 @@ class RetrievalDebugView:
 
 @dataclass(frozen=True)
 class RunBundle:
+    """Aggregates all display-ready artifacts for a run."""
+
     run_dir: Path
     ranked_providers: list[RankedProviderView]
     objections: list[ObjectionView]
@@ -129,6 +155,8 @@ class RunBundle:
 
 @dataclass(frozen=True)
 class ArtifactFileView:
+    """Describes one artifact file on disk."""
+
     file_name: str
     label: str
     path: Path
@@ -136,11 +164,14 @@ class ArtifactFileView:
 
     @property
     def download_name(self) -> str:
+        """Builds the default download filename."""
         return f"{self.path.parent.name}_{self.file_name}"
 
 
 @dataclass(frozen=True)
 class ValidationFileStatus:
+    """Captures validation state for one artifact file."""
+
     file_name: str
     label: str
     exists: bool
@@ -148,11 +179,14 @@ class ValidationFileStatus:
 
     @property
     def is_valid(self) -> bool:
+        """Reports whether the file passed validation."""
         return self.exists and not self.errors
 
 
 @dataclass(frozen=True)
 class ValidationReport:
+    """Captures file-level validation details for a run."""
+
     run_dir: Path
     file_statuses: list[ValidationFileStatus]
     checksum_error: str | None
@@ -160,11 +194,14 @@ class ValidationReport:
 
     @property
     def is_valid(self) -> bool:
+        """Reports whether the run passed validation."""
         return not self.errors
 
 
 @dataclass(frozen=True)
 class SettingsOverride:
+    """Holds optional in-memory settings overrides from the UI."""
+
     market_csv: Path | None = None
     crm_csv: Path | None = None
     kb_markdown: Path | None = None
@@ -185,22 +222,29 @@ class SettingsOverride:
 
 @dataclass(frozen=True)
 class RunControls:
+    """Holds runtime-only controls that are not persisted."""
+
     strict_citations: bool | None = None
     fail_on_low_confidence: float | None = None
 
 
 @dataclass(frozen=True)
 class ValidationSummary:
+    """Summarizes validation errors for a run."""
+
     run_dir: Path
     errors: list[str]
 
     @property
     def is_valid(self) -> bool:
+        """Reports whether the run has no validation errors."""
         return not self.errors
 
 
 @dataclass(frozen=True)
 class RunSummary:
+    """Summarizes a run for selection lists and overview cards."""
+
     run_dir: Path
     generated_at_utc: str
     provider_count: int
@@ -213,6 +257,8 @@ class RunSummary:
 
 @dataclass(frozen=True)
 class LoadedRunSummary:
+    """Bundles parsed artifacts before they are converted for display."""
+
     run_dir: Path
     metadata: RunMetadataView
     providers: list[ProviderTableRow]
@@ -223,14 +269,40 @@ class LoadedRunSummary:
 
 
 def load_ui_settings(config_path: Path = DEFAULT_CONFIG_PATH) -> Settings:
+    """Loads frontend settings from disk.
+
+    Args:
+        config_path: Path to the TOML settings file.
+
+    Returns:
+        Parsed application settings.
+    """
     return load_settings(config_path)
 
 
 def load_default_settings(config_path: Path = DEFAULT_CONFIG_PATH) -> Settings:
+    """Loads the default UI settings.
+
+    Args:
+        config_path: Path to the TOML settings file.
+
+    Returns:
+        Parsed application settings.
+    """
     return load_ui_settings(config_path)
 
 
 def apply_settings_overrides(settings: Settings, overrides: SettingsOverride) -> Settings:
+    """Applies in-memory overrides to settings.
+
+    Args:
+        settings: Baseline application settings.
+        overrides: Partial overrides supplied by the frontend.
+
+    Returns:
+        A copied ``Settings`` object with overrides applied.
+    """
+    # Streamlit uses in-memory overrides so the checked-in defaults remain the source of truth.
     updated = settings
 
     path_updates: dict[str, Path] = {}
@@ -303,6 +375,16 @@ def run_pipeline_from_ui(
     settings_overrides: SettingsOverride | None = None,
     controls: RunControls | None = None,
 ) -> Path:
+    """Runs the pipeline using frontend controls.
+
+    Args:
+        config_path: Path to the TOML settings file.
+        settings_overrides: Optional in-memory settings overrides.
+        controls: Optional runtime-only control flags.
+
+    Returns:
+        The output run directory created by the pipeline.
+    """
     settings = load_ui_settings(config_path)
     if settings_overrides is not None:
         settings = apply_settings_overrides(settings, settings_overrides)
@@ -316,6 +398,14 @@ def run_pipeline_from_ui(
 
 
 def discover_run_dirs(output_dir: Path) -> list[Path]:
+    """Lists run directories in reverse chronological order.
+
+    Args:
+        output_dir: Directory containing run subdirectories.
+
+    Returns:
+        Sorted run directories.
+    """
     if not output_dir.exists():
         return []
     run_dirs = [
@@ -326,6 +416,14 @@ def discover_run_dirs(output_dir: Path) -> list[Path]:
 
 
 def most_recent_run_dir(output_dir: Path) -> Path | None:
+    """Returns the newest available run directory.
+
+    Args:
+        output_dir: Directory containing run subdirectories.
+
+    Returns:
+        The most recent run directory, if present.
+    """
     run_dirs = discover_run_dirs(output_dir)
     if not run_dirs:
         return None
@@ -333,6 +431,14 @@ def most_recent_run_dir(output_dir: Path) -> Path | None:
 
 
 def load_run_summary(run_dir: Path) -> LoadedRunSummary:
+    """Loads and parses all persisted artifacts for a run.
+
+    Args:
+        run_dir: Run directory to read.
+
+    Returns:
+        A parsed summary of the run.
+    """
     return LoadedRunSummary(
         run_dir=run_dir,
         metadata=_load_metadata(run_dir),
@@ -345,13 +451,30 @@ def load_run_summary(run_dir: Path) -> LoadedRunSummary:
 
 
 def validate_run_summary(run_dir: Path) -> ValidationSummary:
+    """Validates a run directory.
+
+    Args:
+        run_dir: Run directory to validate.
+
+    Returns:
+        A validation summary for the run.
+    """
     return ValidationSummary(run_dir=run_dir, errors=validate_run_outputs(run_dir))
 
 
 def load_validation_report(run_dir: Path) -> ValidationReport:
+    """Builds file-level validation details for the UI.
+
+    Args:
+        run_dir: Run directory to validate.
+
+    Returns:
+        A detailed validation report.
+    """
     errors = validate_run_outputs(run_dir)
     checksum_error: str | None = None
     file_statuses: list[ValidationFileStatus] = []
+    # Break aggregate validator output back into file-level status cards for the UI.
     for file_name in REQUIRED_TOP_LEVEL:
         path = run_dir / file_name
         file_errors = [
@@ -381,6 +504,14 @@ def load_validation_report(run_dir: Path) -> ValidationReport:
 
 
 def list_artifact_files(run_dir: Path) -> list[ArtifactFileView]:
+    """Lists known artifact files for a run.
+
+    Args:
+        run_dir: Run directory to inspect.
+
+    Returns:
+        File descriptors for each expected artifact.
+    """
     return [
         ArtifactFileView(
             file_name=file_name,
@@ -393,8 +524,17 @@ def list_artifact_files(run_dir: Path) -> list[ArtifactFileView]:
 
 
 def load_run_bundle(run_dir: Path) -> RunBundle:
+    """Loads a run into Streamlit-friendly display models.
+
+    Args:
+        run_dir: Run directory to inspect.
+
+    Returns:
+        A display-ready run bundle.
+    """
     summary = load_run_summary(run_dir)
     validation_report = load_validation_report(run_dir)
+    # The bundle flattens TOML payloads into display-ready dataclasses for Streamlit.
     return RunBundle(
         run_dir=summary.run_dir,
         ranked_providers=[
@@ -454,6 +594,14 @@ def load_run_bundle(run_dir: Path) -> RunBundle:
 
 
 def summarize_runs(output_dir: Path) -> list[RunSummary]:
+    """Summarizes all discovered runs for browse views.
+
+    Args:
+        output_dir: Directory containing run subdirectories.
+
+    Returns:
+        Run summaries sorted by run directory name.
+    """
     summaries: list[RunSummary] = []
     for run_dir in discover_run_dirs(output_dir):
         loaded = load_run_summary(run_dir)
@@ -474,10 +622,19 @@ def summarize_runs(output_dir: Path) -> list[RunSummary]:
 
 
 def _load_metadata(run_dir: Path) -> RunMetadataView:
+    """Loads and narrows run metadata fields.
+
+    Args:
+        run_dir: Run directory to inspect.
+
+    Returns:
+        A normalized metadata mapping.
+    """
     payload = _load_payload(run_dir / "run_metadata.toml")
     if not payload:
         return {}
     metadata: RunMetadataView = {}
+    # Metadata is narrowed field by field so malformed TOML does not leak loose types into the UI.
 
     schema_version = payload.get("schema_version")
     if isinstance(schema_version, str):
@@ -517,6 +674,14 @@ def _load_metadata(run_dir: Path) -> RunMetadataView:
 
 
 def _load_providers(run_dir: Path) -> list[ProviderTableRow]:
+    """Loads ranked provider rows from TOML.
+
+    Args:
+        run_dir: Run directory to inspect.
+
+    Returns:
+        Parsed provider rows.
+    """
     payload = _load_payload(run_dir / "ranked_providers.toml")
     providers = _get_mapping_list(payload, "providers")
     return [
@@ -532,6 +697,14 @@ def _load_providers(run_dir: Path) -> list[ProviderTableRow]:
 
 
 def _load_objections(run_dir: Path) -> list[ObjectionTableRow]:
+    """Loads objection rows from TOML.
+
+    Args:
+        run_dir: Run directory to inspect.
+
+    Returns:
+        Parsed objection rows.
+    """
     payload = _load_payload(run_dir / "objection_handlers.toml")
     objections = _get_mapping_list(payload, "objections")
     return [
@@ -548,6 +721,14 @@ def _load_objections(run_dir: Path) -> list[ObjectionTableRow]:
 
 
 def _load_meeting_scripts(run_dir: Path) -> list[MeetingScriptTableRow]:
+    """Loads meeting script rows from TOML.
+
+    Args:
+        run_dir: Run directory to inspect.
+
+    Returns:
+        Parsed meeting script rows.
+    """
     payload = _load_payload(run_dir / "meeting_scripts.toml")
     scripts = _get_mapping_list(payload, "scripts")
     return [
@@ -563,6 +744,14 @@ def _load_meeting_scripts(run_dir: Path) -> list[MeetingScriptTableRow]:
 
 
 def _load_retrieval_debug(run_dir: Path) -> list[RetrievalTableRow]:
+    """Loads retrieval debug rows from TOML.
+
+    Args:
+        run_dir: Run directory to inspect.
+
+    Returns:
+        Parsed retrieval debug rows.
+    """
     payload = _load_payload(run_dir / "retrieval_debug.toml")
     rows = _get_mapping_list(payload, "retrieval_debug")
     return [
@@ -583,18 +772,43 @@ def _load_retrieval_debug(run_dir: Path) -> list[RetrievalTableRow]:
 
 
 def _load_payload(path: Path) -> dict[str, object]:
+    """Loads a TOML payload if the file exists.
+
+    Args:
+        path: TOML file path.
+
+    Returns:
+        Parsed payload or an empty mapping when missing.
+    """
     if not path.exists():
         return {}
     return parse_toml(path)
 
 
 def _get_mapping(value: object) -> dict[str, object]:
+    """Narrows a dynamic value to a mapping.
+
+    Args:
+        value: Value to inspect.
+
+    Returns:
+        A mapping when the value is a dict, otherwise an empty mapping.
+    """
     if isinstance(value, dict):
         return cast(dict[str, object], value)
     return {}
 
 
 def _get_mapping_list(mapping: dict[str, object], key: str) -> list[dict[str, object]]:
+    """Narrows a mapping entry to a list of mappings.
+
+    Args:
+        mapping: Parent payload mapping.
+        key: Key to read from the mapping.
+
+    Returns:
+        A list of nested mappings.
+    """
     value = mapping.get(key)
     if not isinstance(value, list):
         return []
@@ -607,11 +821,29 @@ def _get_mapping_list(mapping: dict[str, object], key: str) -> list[dict[str, ob
 
 
 def _get_str(mapping: dict[str, object], key: str) -> str:
+    """Reads a string-like value from a mapping.
+
+    Args:
+        mapping: Parent payload mapping.
+        key: Key to read from the mapping.
+
+    Returns:
+        The normalized string value.
+    """
     value = mapping.get(key, "")
     return value if isinstance(value, str) else str(value)
 
 
 def _get_float(mapping: dict[str, object], key: str) -> float:
+    """Reads a float-like value from a mapping.
+
+    Args:
+        mapping: Parent payload mapping.
+        key: Key to read from the mapping.
+
+    Returns:
+        The normalized float value.
+    """
     value = mapping.get(key, 0.0)
     if isinstance(value, (int, float)):
         return float(value)
@@ -624,6 +856,14 @@ def _get_float(mapping: dict[str, object], key: str) -> float:
 
 
 def _coerce_metadata_int(value: object) -> int | None:
+    """Coerces metadata numerics to an integer when safe.
+
+    Args:
+        value: Dynamic metadata value.
+
+    Returns:
+        An integer when coercion is lossless, otherwise ``None``.
+    """
     if isinstance(value, int):
         return value
     if isinstance(value, float) and value.is_integer():
@@ -632,6 +872,15 @@ def _coerce_metadata_int(value: object) -> int | None:
 
 
 def _get_string_list(mapping: dict[str, object], key: str) -> list[str]:
+    """Reads a string list from a mapping.
+
+    Args:
+        mapping: Parent payload mapping.
+        key: Key to read from the mapping.
+
+    Returns:
+        A filtered list containing only strings.
+    """
     value = mapping.get(key)
     if not isinstance(value, list):
         return []

@@ -1,3 +1,5 @@
+"""Streamlit operator workspace for the TempoTalk pipeline."""
+
 from __future__ import annotations
 
 import sys
@@ -50,12 +52,22 @@ ARTIFACT_FILES = (
 
 @dataclass(frozen=True)
 class ValidationCard:
+    """Represents a validation status card rendered in the UI."""
+
     title: str
     state: ValidationState
     detail: str
 
 
 def load_stylesheet(path: Path | None = None) -> str:
+    """Loads the optional Streamlit stylesheet.
+
+    Args:
+        path: Override path for the stylesheet file.
+
+    Returns:
+        The stylesheet text if the file exists, otherwise an empty string.
+    """
     stylesheet = DEFAULT_STYLESHEET if path is None else path
     if not stylesheet.exists():
         return ""
@@ -63,18 +75,43 @@ def load_stylesheet(path: Path | None = None) -> str:
 
 
 def format_validation_label(issue_count: int) -> str:
+    """Formats validation error counts for badges and banners.
+
+    Args:
+        issue_count: Number of validation issues for the run.
+
+    Returns:
+        A short label describing validation state.
+    """
     if issue_count == 0:
         return "Validated"
     return f"{issue_count} issue(s)"
 
 
 def _confidence_threshold(enabled: bool, value: float) -> float | None:
+    """Converts the confidence toggle into an optional threshold.
+
+    Args:
+        enabled: Whether threshold enforcement is enabled.
+        value: The selected confidence floor.
+
+    Returns:
+        The threshold when enabled, otherwise ``None``.
+    """
     if enabled:
         return value
     return None
 
 
 def _format_run_label(summary: RunSummary) -> str:
+    """Builds the run selector label.
+
+    Args:
+        summary: Summary information for a run directory.
+
+    Returns:
+        A human-readable run label.
+    """
     validation_label = format_validation_label(len(summary.validation_errors))
     generated = summary.generated_at_utc or "timestamp unavailable"
     return (
@@ -84,6 +121,7 @@ def _format_run_label(summary: RunSummary) -> str:
 
 
 def _render_hero() -> None:
+    """Renders the top-of-page hero section."""
     st.markdown(
         """
         <section class="hero-shell">
@@ -100,6 +138,12 @@ def _render_hero() -> None:
 
 
 def _render_section_intro(title: str, copy: str) -> None:
+    """Renders a shared section intro block.
+
+    Args:
+        title: Section label.
+        copy: Supporting body copy.
+    """
     st.markdown(
         f"""
         <div class="section-intro">
@@ -112,6 +156,16 @@ def _render_section_intro(title: str, copy: str) -> None:
 
 
 def _metadata_value(metadata: object, key: str, fallback: str) -> str:
+    """Extracts a displayable metadata value.
+
+    Args:
+        metadata: Run metadata payload.
+        key: Metadata key to read.
+        fallback: Value to use when the key is absent or invalid.
+
+    Returns:
+        A normalized string value for display.
+    """
     if isinstance(metadata, dict):
         metadata_map = cast(dict[str, object], metadata)
         value = metadata_map.get(key)
@@ -123,7 +177,16 @@ def _metadata_value(metadata: object, key: str, fallback: str) -> str:
 
 
 def _validation_cards(summary: ValidationSummary) -> list[ValidationCard]:
+    """Builds validation cards from a summary object.
+
+    Args:
+        summary: Validation result for a run.
+
+    Returns:
+        The ordered validation cards shown in the UI.
+    """
     cards: list[ValidationCard] = []
+    # Keep the card list stable so missing files do not shift the visual layout between runs.
     for file_name in ARTIFACT_FILES:
         errors = [error for error in summary.errors if file_name in error]
         if errors:
@@ -154,6 +217,11 @@ def _validation_cards(summary: ValidationSummary) -> list[ValidationCard]:
 
 
 def render_metric_cards(bundle: RunBundle) -> None:
+    """Renders top-line metrics for a run bundle.
+
+    Args:
+        bundle: Loaded run bundle to summarize.
+    """
     validation_label = format_validation_label(len(bundle.validation_errors))
     st.markdown(
         f"""
@@ -181,6 +249,11 @@ def render_metric_cards(bundle: RunBundle) -> None:
 
 
 def _render_metadata(bundle: RunBundle) -> None:
+    """Renders key run metadata values.
+
+    Args:
+        bundle: Loaded run bundle to summarize.
+    """
     metadata = bundle.metadata
     schema = _metadata_value(metadata, "schema_version", "unknown")
     generated = _metadata_value(metadata, "generated_at_utc", "not recorded")
@@ -212,6 +285,14 @@ def _render_metadata(bundle: RunBundle) -> None:
 
 
 def _provider_rows(bundle: RunBundle) -> list[dict[str, TableValue]]:
+    """Converts ranked providers into table rows.
+
+    Args:
+        bundle: Loaded run bundle.
+
+    Returns:
+        Flattened provider rows for tabular display.
+    """
     return [
         {
             "provider_id": provider.provider_id,
@@ -229,6 +310,16 @@ def _filtered_providers(
     query: str,
     min_score: float,
 ) -> list[RankedProviderView]:
+    """Filters providers by free-text query and minimum score.
+
+    Args:
+        bundle: Loaded run bundle.
+        query: User-entered search text.
+        min_score: Minimum score threshold.
+
+    Returns:
+        Providers matching the requested filters.
+    """
     providers = [
         provider for provider in bundle.ranked_providers if provider.score >= min_score
     ]
@@ -246,6 +337,14 @@ def _filtered_providers(
 
 
 def _retrieval_rows(item: RetrievalDebugView) -> list[dict[str, TableValue]]:
+    """Converts retrieval hits into table rows.
+
+    Args:
+        item: Retrieval debug entry for one provider.
+
+    Returns:
+        Flattened retrieval rows for display.
+    """
     return [
         {
             "chunk_id": hit.chunk_id,
@@ -257,6 +356,11 @@ def _retrieval_rows(item: RetrievalDebugView) -> list[dict[str, TableValue]]:
 
 
 def _render_objection_card(item: ObjectionView) -> None:
+    """Renders an objection handler card.
+
+    Args:
+        item: Objection artifact to display.
+    """
     metrics = ", ".join(item.supporting_metrics) or "-"
     citations = ", ".join(item.citations) or "-"
     confidence = f"{item.confidence:.2f}"
@@ -278,6 +382,11 @@ def _render_objection_card(item: ObjectionView) -> None:
 
 
 def _render_script_card(item: MeetingScriptView) -> None:
+    """Renders a meeting script card.
+
+    Args:
+        item: Meeting script artifact to display.
+    """
     citations = ", ".join(item.citations) or "-"
     confidence = f"{item.confidence:.2f}"
     st.markdown(
@@ -297,6 +406,11 @@ def _render_script_card(item: MeetingScriptView) -> None:
 
 
 def _render_provider_detail(provider: RankedProviderView) -> None:
+    """Renders provider rationale details.
+
+    Args:
+        provider: Ranked provider entry to display.
+    """
     st.markdown(
         f"""
         <article class="artifact-card">
@@ -314,6 +428,12 @@ def _render_provider_detail(provider: RankedProviderView) -> None:
 
 
 def _render_bundle(bundle: RunBundle) -> None:
+    """Renders the full bundle detail view.
+
+    Args:
+        bundle: Loaded run bundle to display.
+    """
+    # Render the same canonical bundle shape on the run and browse pages.
     render_metric_cards(bundle)
     _render_metadata(bundle)
 
@@ -362,6 +482,15 @@ def _render_bundle(bundle: RunBundle) -> None:
 
 
 def _build_run_overrides(settings: Settings) -> tuple[SettingsOverride, RunControls, bool]:
+    """Builds transient run settings from the form.
+
+    Args:
+        settings: Baseline settings loaded from config.
+
+    Returns:
+        A tuple of settings overrides, run controls, and submit state.
+    """
+    # The form edits a transient override object; it never rewrites config/defaults.toml.
     st.markdown('<div class="control-block">Run Configuration</div>', unsafe_allow_html=True)
     with st.form("run-pipeline-form", clear_on_submit=False):
         path_left, path_right = st.columns(2)
@@ -449,6 +578,11 @@ def _build_run_overrides(settings: Settings) -> tuple[SettingsOverride, RunContr
 
 
 def _show_validation_banner(error_count: int) -> None:
+    """Renders the validation status banner.
+
+    Args:
+        error_count: Number of validation errors.
+    """
     label = format_validation_label(error_count)
     st.markdown(
         f"""
@@ -462,6 +596,11 @@ def _show_validation_banner(error_count: int) -> None:
 
 
 def render_run_page(config_path: Path) -> None:
+    """Renders the pipeline execution page.
+
+    Args:
+        config_path: Path to the settings file to load.
+    """
     _render_section_intro(
         "Run Pipeline",
         "Launch a new pipeline run with in-memory overrides while leaving the checked-in "
@@ -504,6 +643,11 @@ def render_run_page(config_path: Path) -> None:
 
 
 def render_runs_page(config_path: Path) -> None:
+    """Renders the historical runs browser.
+
+    Args:
+        config_path: Path to the settings file to load.
+    """
     _render_section_intro(
         "Browse Runs",
         "Audit ranked providers, objection handling, scripts, and retrieval traces from "
@@ -525,6 +669,11 @@ def render_runs_page(config_path: Path) -> None:
 
 
 def render_validate_page(config_path: Path) -> None:
+    """Renders the output validation page.
+
+    Args:
+        config_path: Path to the settings file to load.
+    """
     _render_section_intro(
         "Validate Outputs",
         "Check schema keys and checksum integrity before using a run as a reference artifact.",
@@ -557,6 +706,11 @@ def render_validate_page(config_path: Path) -> None:
 
 
 def render_about_page(config_path: Path) -> None:
+    """Renders runtime and artifact notes for the app.
+
+    Args:
+        config_path: Active settings path shown to the operator.
+    """
     _render_section_intro(
         "System / About",
         "Reference notes for runtime boundaries, artifacts, and how the Streamlit shell "
@@ -585,7 +739,10 @@ def render_about_page(config_path: Path) -> None:
 
 
 def main() -> None:
+    """Runs the Streamlit app."""
     load_dotenv()
+    # Import path bootstrapping happens above so repo-root Streamlit launches
+    # can still import the package.
     st.set_page_config(
         page_title=APP_TITLE,
         page_icon=":material/analytics:",

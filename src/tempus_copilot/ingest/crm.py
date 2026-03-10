@@ -1,3 +1,5 @@
+"""Load CRM note exports into typed note records."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -8,6 +10,14 @@ from tempus_copilot.models import CRMNote
 
 
 def load_crm_notes(path: Path) -> list[CRMNote]:
+    """Load CRM notes from a CSV export.
+
+    Args:
+        path: Path to the CRM notes CSV file.
+
+    Returns:
+        A list of CRM notes parsed from the CSV.
+    """
     df = pl.read_csv(path)
     return [
         CRMNote(

@@ -1,3 +1,5 @@
+"""Integration-style tests for retrieval output quality."""
+
 import tomllib
 from pathlib import Path
 
@@ -7,6 +9,7 @@ from tests.helpers.fakes import default_retrieval_embedding_client, static_gener
 
 
 def test_citations_map_to_chunk_ids_and_metrics_present(tmp_path: Path) -> None:
+    """Ensure generated objections cite retrieved KB chunks and metrics."""
     settings = load_settings(Path("config/defaults.toml")).model_copy(
         update={"output_dir": tmp_path}
     )
@@ -26,6 +29,7 @@ def test_citations_map_to_chunk_ids_and_metrics_present(tmp_path: Path) -> None:
 
 
 def test_pipeline_handles_empty_retrieval(tmp_path: Path) -> None:
+    """Allow the pipeline to complete even when retrieval returns no hits."""
     settings = load_settings(Path("config/defaults.toml")).model_copy(
         update={"output_dir": tmp_path}
     )

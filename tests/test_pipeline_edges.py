@@ -1,3 +1,5 @@
+"""Pipeline edge-case tests."""
+
 import tomllib
 from hashlib import sha256
 from pathlib import Path
@@ -15,6 +17,7 @@ from tests.helpers.fakes import (
 
 
 def _write_fixture_inputs(data_dir: Path) -> None:
+    """Copies committed fixture inputs into a temporary data directory."""
     data_dir.mkdir(parents=True, exist_ok=True)
     (data_dir / "market_intelligence.csv").write_text(
         Path("tests/fixtures/market_intelligence.csv").read_text(encoding="utf-8"),
@@ -33,6 +36,7 @@ def _write_fixture_inputs(data_dir: Path) -> None:
 def test_pipeline_ensure_inputs_generates_mock_data_for_missing_inputs(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Verifies missing inputs trigger mock-data generation before the pipeline runs."""
     data_dir = tmp_path / "generated_data"
     output_dir = tmp_path / "out"
     settings = load_settings(Path("config/defaults.toml")).model_copy(
@@ -46,6 +50,13 @@ def test_pipeline_ensure_inputs_generates_mock_data_for_missing_inputs(
     called = {"value": False}
 
     def fake_generate(output_dir: Path, seed: int, scale: int) -> None:
+        """Fake generate.
+        
+        Args:
+            output_dir: Filesystem path for output dir.
+            seed: Seed.
+            scale: Scale.
+        """
         called["value"] = True
         output_dir.mkdir(parents=True, exist_ok=True)
         (output_dir / "market_intelligence.csv").write_text(
@@ -81,6 +92,7 @@ def test_pipeline_ensure_inputs_skips_generation_when_inputs_exist(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verifies existing inputs bypass mock-data generation."""
     data_dir = tmp_path / "existing_data"
     _write_fixture_inputs(data_dir)
     settings = load_settings(Path("config/defaults.toml")).model_copy(
@@ -93,6 +105,13 @@ def test_pipeline_ensure_inputs_skips_generation_when_inputs_exist(
     )
 
     def fail_generate(output_dir: Path, seed: int, scale: int) -> None:
+        """Fail generate.
+        
+        Args:
+            output_dir: Filesystem path for output dir.
+            seed: Seed.
+            scale: Scale.
+        """
         raise AssertionError(f"unexpected mock generation for {output_dir} {seed} {scale}")
 
     monkeypatch.setattr(pipeline_module, "generate_mock_data", fail_generate)
@@ -107,6 +126,7 @@ def test_pipeline_ensure_inputs_skips_generation_when_inputs_exist(
 def test_compute_baml_hashes_uses_empty_hash_when_source_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verifies missing BAML source files hash as empty content."""
     missing = Path("this/does/not/exist.baml")
     monkeypatch.setattr(pipeline_module, "_baml_source_path", lambda: missing)
     schema_hash, prompt_hash = pipeline_module._compute_baml_hashes()
@@ -116,12 +136,14 @@ def test_compute_baml_hashes_uses_empty_hash_when_source_missing(
 
 
 def test_extract_metrics_deduplicates_values() -> None:
+    """Verifies extracted numeric metrics are deduplicated."""
     metrics = pipeline_module._extract_metrics("8 days in 8 days with 99.1% and 99.1%")
     assert metrics.count("8") == 1
     assert metrics.count("99.1") == 1
 
 
 def test_pipeline_helper_wrappers_delegate_to_support_module() -> None:
+    """Verifies legacy helper wrappers still delegate to support-layer implementations."""
     assert (
         pipeline_module._build_query_text("P001", "Lung", "general")
         == "Provider P001 with tumor focus Lung. Address concern: general."
@@ -139,6 +161,7 @@ def test_pipeline_helper_wrappers_delegate_to_support_module() -> None:
 def test_default_embedding_client_returns_ollama_client(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verifies the default embedding client enforces the Ollama runtime policy."""
     settings = load_settings(Path("config/defaults.toml"))
     monkeypatch.setenv("OLLAMA_API_KEY", "test-key")
     monkeypatch.setenv("OLLAMA_BASE_URL", "https://ollama.com")
@@ -155,6 +178,7 @@ def test_default_embedding_client_returns_ollama_client(
 
 
 def test_pipeline_handles_empty_kb_embedding_matrix(tmp_path: Path) -> None:
+    """Verifies the pipeline tolerates an empty KB embedding matrix."""
     settings = load_settings(Path("config/defaults.toml")).model_copy(
         update={"output_dir": tmp_path}
     )
@@ -167,6 +191,7 @@ def test_pipeline_handles_empty_kb_embedding_matrix(tmp_path: Path) -> None:
 
 
 def test_pipeline_uses_general_concern_when_provider_has_no_notes(tmp_path: Path) -> None:
+    """Verifies providers without CRM notes fall back to the general concern bucket."""
     data_dir = tmp_path / "inputs"
     _write_fixture_inputs(data_dir)
     (data_dir / "crm_notes.csv").write_text(
@@ -196,6 +221,7 @@ def test_pipeline_uses_general_concern_when_provider_has_no_notes(tmp_path: Path
 
 
 def test_pipeline_rejects_non_2d_embedding_matrix(tmp_path: Path) -> None:
+    """Verifies invalid embedding matrix shapes fail fast."""
     settings = load_settings(Path("config/defaults.toml")).model_copy(
         update={"output_dir": tmp_path}
     )
@@ -208,6 +234,7 @@ def test_pipeline_rejects_non_2d_embedding_matrix(tmp_path: Path) -> None:
 
 
 def test_pipeline_low_confidence_threshold_non_violation(tmp_path: Path) -> None:
+    """Verifies low-confidence checks allow runs above the configured threshold."""
     settings = load_settings(Path("config/defaults.toml")).model_copy(
         update={"output_dir": tmp_path}
     )
@@ -221,6 +248,7 @@ def test_pipeline_low_confidence_threshold_non_violation(tmp_path: Path) -> None
 
 
 def test_pipeline_uses_config_default_for_strict_citations(tmp_path: Path) -> None:
+    """Verifies pipeline-level strict citations can default from configuration."""
     settings = load_settings(Path("config/defaults.toml")).model_copy(
         update={
             "output_dir": tmp_path,
@@ -245,6 +273,7 @@ def test_pipeline_uses_config_default_for_strict_citations(tmp_path: Path) -> No
 
 
 def test_pipeline_low_confidence_threshold_violation_raises(tmp_path: Path) -> None:
+    """Verifies runs below the configured confidence threshold raise an error."""
     settings = load_settings(Path("config/defaults.toml")).model_copy(
         update={"output_dir": tmp_path}
     )

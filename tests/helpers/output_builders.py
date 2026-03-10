@@ -1,3 +1,5 @@
+"""Helpers for building valid output directories in tests."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -8,6 +10,7 @@ from tempus_copilot.output_schema import compute_output_checksum
 
 
 def write_minimal_outputs(run_dir: Path) -> None:
+    """Write the minimal set of schema-versioned output artifacts."""
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "ranked_providers.toml").write_text(
         'schema_version = "1.0.0"\nproviders = []\n',
@@ -28,6 +31,7 @@ def write_minimal_outputs(run_dir: Path) -> None:
 
 
 def write_valid_run_dir(run_dir: Path) -> None:
+    """Write a fully valid run directory, including matching metadata checksum."""
     write_minimal_outputs(run_dir)
     checksum = compute_output_checksum(run_dir)
     metadata = {

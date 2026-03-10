@@ -1,3 +1,5 @@
+"""Command-line entrypoints for running and validating TempoTalk output."""
+
 from __future__ import annotations
 
 import argparse
@@ -15,6 +17,16 @@ def run(
     strict_citations: bool = False,
     fail_on_low_confidence: float | None = None,
 ) -> int:
+    """Executes the pipeline for one configuration.
+
+    Args:
+        settings: Loaded application settings.
+        strict_citations: Whether to filter unsupported citations.
+        fail_on_low_confidence: Optional minimum confidence threshold.
+
+    Returns:
+        Process exit code.
+    """
     run_pipeline(
         settings,
         strict_citations=strict_citations,
@@ -24,6 +36,11 @@ def run(
 
 
 def main() -> int:
+    """Parses CLI arguments and dispatches the requested command.
+
+    Returns:
+        Process exit code.
+    """
     load_dotenv()
     parser = argparse.ArgumentParser(description="Tempus Sales Copilot CLI")
     subparsers = parser.add_subparsers(dest="command")

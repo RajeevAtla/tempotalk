@@ -1,3 +1,5 @@
+"""Golden output regression tests."""
+
 from pathlib import Path
 
 from tempus_copilot.config import load_settings
@@ -6,6 +8,7 @@ from tests.helpers.fakes import default_retrieval_embedding_client, static_gener
 
 
 def test_golden_run_outputs_match_fixtures(tmp_path: Path) -> None:
+    """Verifies pipeline outputs remain byte-for-byte aligned with golden fixtures."""
     settings = load_settings(Path("config/defaults.toml")).model_copy(
         update={
             "market_csv": Path("tests/fixtures/market_intelligence.csv"),

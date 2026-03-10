@@ -1,3 +1,5 @@
+"""Tests for streamlit app."""
+
 from __future__ import annotations
 
 import importlib
@@ -21,37 +23,99 @@ from tempus_copilot.ui_service import (
 
 
 class _Context:
+    """Context."""
     def __enter__(self) -> _Context:
+        """Internal helper for enter.
+        
+        Returns:
+            Computed result.
+        """
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> bool:
+        """Internal helper for exit.
+        
+        Args:
+            exc_type: Exc type.
+            exc: Exc.
+            tb: Tb.
+        
+        Returns:
+            Boolean result.
+        """
         return False
 
 
 class _Sidebar:
+    """Sidebar."""
     def __init__(self) -> None:
+        """Internal helper for init.
+        """
         self.markdown_calls: list[str] = []
         self.caption_calls: list[str] = []
 
     def markdown(self, value: str) -> None:
+        """Markdown.
+        
+        Args:
+            value: Value.
+        """
         self.markdown_calls.append(value)
 
     def text_input(self, label: str, value: str) -> str:
+        """Text input.
+        
+        Args:
+            label: Label.
+            value: Value.
+        
+        Returns:
+            str result.
+        """
         return value
 
     def radio(self, label: str, options: list[str]) -> str:
+        """Radio.
+        
+        Args:
+            label: Label.
+            options: Options.
+        
+        Returns:
+            str result.
+        """
         return options[0]
 
     def caption(self, value: str) -> None:
+        """Caption.
+        
+        Args:
+            value: Value.
+        """
         self.caption_calls.append(value)
 
 
 class _AboutSidebar(_Sidebar):
+    """About sidebar."""
     def radio(self, label: str, options: list[str]) -> str:
+        """Radio.
+        
+        Args:
+            label: Label.
+            options: Options.
+        
+        Returns:
+            str result.
+        """
         return options[3]
 
 
 def _sample_bundle() -> RunBundle:
+    """Internal helper for sample bundle.
+    
+    Returns:
+        Computed result.
+    """
     return RunBundle(
         run_dir=Path("outputs/run_1"),
         ranked_providers=[
@@ -116,17 +180,29 @@ def _sample_bundle() -> RunBundle:
 
 
 def test_load_stylesheet_returns_empty_for_missing_file(tmp_path: Path) -> None:
+    """Test load stylesheet returns empty for missing file.
+    
+    Args:
+        tmp_path: Temporary path provided by pytest.
+    """
     missing = tmp_path / "missing.css"
     assert streamlit_app.load_stylesheet(missing) == ""
 
 
 def test_load_stylesheet_reads_existing_file(tmp_path: Path) -> None:
+    """Test load stylesheet reads existing file.
+    
+    Args:
+        tmp_path: Temporary path provided by pytest.
+    """
     stylesheet = tmp_path / "streamlit.css"
     stylesheet.write_text(".stApp { color: black; }", encoding="utf-8")
     assert streamlit_app.load_stylesheet(stylesheet) == ".stApp { color: black; }"
 
 
 def test_format_validation_helpers() -> None:
+    """Test format validation helpers.
+    """
     assert streamlit_app.format_validation_label(0) == "Validated"
     assert streamlit_app.format_validation_label(2) == "2 issue(s)"
     assert streamlit_app._confidence_threshold(True, 0.65) == 0.65
@@ -134,6 +210,8 @@ def test_format_validation_helpers() -> None:
 
 
 def test_format_run_label_reports_validation_state() -> None:
+    """Test format run label reports validation state.
+    """
     summary = RunSummary(
         run_dir=Path("outputs/run_20260310_120000"),
         generated_at_utc="2026-03-10T12:00:00+00:00",
@@ -146,9 +224,20 @@ def test_format_run_label_reports_validation_state() -> None:
 
 
 def test_render_metric_cards_writes_expected_markup(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test render metric cards writes expected markup.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     captured: list[str] = []
 
     def fake_markdown(value: str, *, unsafe_allow_html: bool = False) -> None:
+        """Fake markdown.
+        
+        Args:
+            value: Value.
+            unsafe_allow_html: Unsafe allow html.
+        """
         captured.append(value)
         assert unsafe_allow_html is True
 
@@ -160,21 +249,55 @@ def test_render_metric_cards_writes_expected_markup(monkeypatch: pytest.MonkeyPa
 
 
 def test_main_dispatches_selected_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test main dispatches selected page.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     calls: list[str] = []
 
     class FakeSidebar:
+        """Fake sidebar."""
         def markdown(self, value: str) -> None:
+            """Markdown.
+            
+            Args:
+                value: Value.
+            """
             calls.append(f"sidebar-markdown:{value}")
 
         def text_input(self, label: str, value: str) -> str:
+            """Text input.
+            
+            Args:
+                label: Label.
+                value: Value.
+            
+            Returns:
+                str result.
+            """
             assert label == "Config Path"
             return value
 
         def radio(self, label: str, options: list[str]) -> str:
+            """Radio.
+            
+            Args:
+                label: Label.
+                options: Options.
+            
+            Returns:
+                str result.
+            """
             assert label == "Workspace"
             return options[1]
 
         def caption(self, value: str) -> None:
+            """Caption.
+            
+            Args:
+                value: Value.
+            """
             calls.append(f"caption:{value}")
 
     monkeypatch.setattr(streamlit_app, "load_dotenv", lambda: None)
@@ -204,24 +327,64 @@ def test_main_dispatches_selected_page(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_main_injects_stylesheet_when_present(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test main injects stylesheet when present.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     calls: list[str] = []
 
     class FakeSidebar:
+        """Fake sidebar."""
         def markdown(self, value: str) -> None:
+            """Markdown.
+            
+            Args:
+                value: Value.
+            """
             calls.append(value)
 
         def text_input(self, label: str, value: str) -> str:
+            """Text input.
+            
+            Args:
+                label: Label.
+                value: Value.
+            
+            Returns:
+                str result.
+            """
             return value
 
         def radio(self, label: str, options: list[str]) -> str:
+            """Radio.
+            
+            Args:
+                label: Label.
+                options: Options.
+            
+            Returns:
+                str result.
+            """
             return options[3]
 
         def caption(self, value: str) -> None:
+            """Caption.
+            
+            Args:
+                value: Value.
+            """
             calls.append(value)
 
     captured_markdown: list[str] = []
 
     def fake_markdown(value: str, *, unsafe_allow_html: bool = False) -> None:
+        """Fake markdown.
+        
+        Args:
+            value: Value.
+            unsafe_allow_html: Unsafe allow html.
+        """
         if unsafe_allow_html:
             captured_markdown.append(value)
 
@@ -244,9 +407,15 @@ def test_main_injects_stylesheet_when_present(monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_render_validate_page_shows_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test render validate page shows success.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     calls: list[str] = []
 
     class SettingsStub:
+        """Settings stub."""
         output_dir = Path("outputs")
 
     monkeypatch.setattr(streamlit_app, "load_default_settings", lambda path: SettingsStub())
@@ -273,6 +442,8 @@ def test_render_validate_page_shows_success(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def test_validation_cards_include_checksum_state() -> None:
+    """Test validation cards include checksum state.
+    """
     summary = ValidationSummary(
         run_dir=Path("outputs/run_1"),
         errors=["Checksum mismatch between metadata and outputs"],
@@ -283,6 +454,8 @@ def test_validation_cards_include_checksum_state() -> None:
 
 
 def test_validation_cards_include_file_specific_errors() -> None:
+    """Test validation cards include file specific errors.
+    """
     summary = ValidationSummary(
         run_dir=Path("outputs/run_1"),
         errors=["ranked_providers.toml missing key: providers"],
@@ -295,6 +468,8 @@ def test_validation_cards_include_file_specific_errors() -> None:
 
 
 def test_validation_cards_report_pass_state() -> None:
+    """Test validation cards report pass state.
+    """
     summary = ValidationSummary(run_dir=Path("outputs/run_1"), errors=[])
     cards = streamlit_app._validation_cards(summary)
     checksum = next(card for card in cards if card.title == "checksum")
@@ -303,12 +478,16 @@ def test_validation_cards_report_pass_state() -> None:
 
 
 def test_metadata_value_covers_string_number_and_fallback() -> None:
+    """Test metadata value covers string number and fallback.
+    """
     assert streamlit_app._metadata_value({"provider_count": 3}, "provider_count", "x") == "3"
     assert streamlit_app._metadata_value({"schema_version": ""}, "schema_version", "x") == "x"
     assert streamlit_app._metadata_value("bad", "schema_version", "fallback") == "fallback"
 
 
 def test_filtered_providers_applies_query_and_min_score() -> None:
+    """Test filtered providers applies query and min score.
+    """
     bundle = RunBundle(
         run_dir=Path("outputs/run_1"),
         ranked_providers=[
@@ -350,6 +529,8 @@ def test_filtered_providers_applies_query_and_min_score() -> None:
 
 
 def test_filtered_providers_returns_all_above_threshold_for_empty_query() -> None:
+    """Test filtered providers returns all above threshold for empty query.
+    """
     bundle = RunBundle(
         run_dir=Path("outputs/run_1"),
         ranked_providers=[
@@ -387,14 +568,22 @@ def test_filtered_providers_returns_all_above_threshold_for_empty_query() -> Non
 
 
 def test_metadata_value_uses_fallback_for_unexpected_inputs() -> None:
+    """Test metadata value uses fallback for unexpected inputs.
+    """
     assert streamlit_app._metadata_value({}, "schema_version", "fallback") == "fallback"
     assert streamlit_app._metadata_value({"count": 3}, "count", "fallback") == "3"
     assert streamlit_app._metadata_value("bad", "count", "fallback") == "fallback"
 
 def test_render_validate_page_shows_error_list(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test render validate page shows error list.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     calls: list[str] = []
 
     class SettingsStub:
+        """Settings stub."""
         output_dir = Path("outputs")
 
     monkeypatch.setattr(streamlit_app, "load_default_settings", lambda path: SettingsStub())
@@ -418,6 +607,11 @@ def test_render_validate_page_shows_error_list(monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_render_about_page_outputs_runtime_copy(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test render about page outputs runtime copy.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     captured: list[str] = []
     monkeypatch.setattr(
         streamlit_app.st,
@@ -431,6 +625,8 @@ def test_render_about_page_outputs_runtime_copy(monkeypatch: pytest.MonkeyPatch)
 
 
 def test_provider_and_retrieval_rows_cover_helpers() -> None:
+    """Test provider and retrieval rows cover helpers.
+    """
     bundle = _sample_bundle()
     provider_rows = streamlit_app._provider_rows(bundle)
     retrieval_rows = streamlit_app._retrieval_rows(bundle.retrieval_debug[0])
@@ -440,6 +636,11 @@ def test_provider_and_retrieval_rows_cover_helpers() -> None:
 
 
 def test_render_bundle_empty_state_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test render bundle empty state paths.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     bundle = RunBundle(
         run_dir=Path("outputs/run_empty"),
         ranked_providers=[],
@@ -466,6 +667,11 @@ def test_render_bundle_empty_state_paths(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 def test_render_bundle_non_empty_retrieval_with_empty_hits(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test render bundle non empty retrieval with empty hits.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     bundle = _sample_bundle()
     bundle = RunBundle(
         run_dir=bundle.run_dir,
@@ -495,6 +701,11 @@ def test_render_bundle_non_empty_retrieval_with_empty_hits(monkeypatch: pytest.M
 
 
 def test_render_bundle_non_empty_retrieval_with_hits(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test render bundle non empty retrieval with hits.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     bundle = _sample_bundle()
     calls: list[str] = []
     monkeypatch.setattr(streamlit_app.st, "markdown", lambda *args, **kwargs: None)
@@ -515,6 +726,11 @@ def test_render_bundle_non_empty_retrieval_with_hits(monkeypatch: pytest.MonkeyP
 
 
 def test_show_validation_banner_renders_markup(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test show validation banner renders markup.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     captured: list[str] = []
     monkeypatch.setattr(
         streamlit_app.st,
@@ -528,6 +744,11 @@ def test_show_validation_banner_renders_markup(monkeypatch: pytest.MonkeyPatch) 
 
 
 def test_build_run_overrides_returns_expected_models(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test build run overrides returns expected models.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     from tempus_copilot.config import load_settings
 
     settings = load_settings(Path("config/defaults.toml"))
@@ -576,6 +797,11 @@ def test_build_run_overrides_returns_expected_models(monkeypatch: pytest.MonkeyP
 def test_render_run_page_covers_success_failure_and_empty_states(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Test render run page covers success failure and empty states.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     settings = type("SettingsStub", (), {"output_dir": Path("outputs")})()
     bundle = _sample_bundle()
     calls: list[str] = []
@@ -633,6 +859,11 @@ def test_render_run_page_covers_success_failure_and_empty_states(
 
 
 def test_render_runs_page_empty_and_populated(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test render runs page empty and populated.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     settings = type("SettingsStub", (), {"output_dir": Path("outputs")})()
     bundle = _sample_bundle()
     summary = RunSummary(
@@ -676,6 +907,11 @@ def test_render_runs_page_empty_and_populated(monkeypatch: pytest.MonkeyPatch) -
 def test_render_validate_page_handles_selected_run_and_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Test render validate page handles selected run and failure.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     settings = type("SettingsStub", (), {"output_dir": Path("outputs")})()
     summary = RunSummary(
         run_dir=Path("outputs/run_selected"),
@@ -715,6 +951,11 @@ def test_render_validate_page_handles_selected_run_and_failure(
 
 
 def test_render_validate_page_handles_blank_candidate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test render validate page handles blank candidate.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     settings = type("SettingsStub", (), {"output_dir": Path("outputs")})()
     calls: list[str] = []
     monkeypatch.setattr(streamlit_app, "load_default_settings", lambda path: settings)
@@ -730,10 +971,21 @@ def test_render_validate_page_handles_blank_candidate(monkeypatch: pytest.Monkey
 
 
 def test_render_about_page_and_main_default_branch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test render about page and main default branch.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     sidebar = _AboutSidebar()
     calls: list[str] = []
 
     def fake_markdown(value: str, **kwargs: object) -> None:
+        """Fake markdown.
+        
+        Args:
+            value: Value.
+            kwargs: Kwargs.
+        """
         calls.append(value)
 
     monkeypatch.setattr(streamlit_app, "load_dotenv", lambda: None)
@@ -765,6 +1017,11 @@ def test_render_about_page_and_main_default_branch(monkeypatch: pytest.MonkeyPat
 
 
 def test_main_run_and_validate_branches(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test main run and validate branches.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     for index, expected in [(0, "run"), (2, "validate")]:
         sidebar = _Sidebar()
         calls: list[str] = []
@@ -809,6 +1066,11 @@ def test_main_run_and_validate_branches(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def test_module_reload_adds_src_to_sys_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test module reload adds src to sys path.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     src_dir = str(Path(streamlit_app.__file__).resolve().parent / "src")
     original = list(streamlit_app.sys.path)
     monkeypatch.setattr(streamlit_app.sys, "path", [path for path in original if path != src_dir])
@@ -819,6 +1081,11 @@ def test_module_reload_adds_src_to_sys_path(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def test_main_guard_executes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test main guard executes.
+    
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+    """
     sidebar = _AboutSidebar()
 
     monkeypatch.setattr("dotenv.load_dotenv", lambda: None)

@@ -1,3 +1,5 @@
+"""Live Ollama Cloud integration smoke test."""
+
 from os import getenv
 
 import pytest
@@ -12,6 +14,13 @@ pytestmark = pytest.mark.integration
     reason="RUN_OLLAMA_INTEGRATION and OLLAMA_API_KEY must be set",
 )
 def test_live_ollama_generation_round_trip() -> None:
+    """Exercise a real generation round trip against Ollama Cloud.
+
+    Verifies:
+        The live generation client can return a typed objection handler when
+        integration credentials are available.
+    """
+
     client = OllamaGenerationClient(model="ministral-3:8b")
     objection = client.generate_objection_handler(
         provider_id="P001",

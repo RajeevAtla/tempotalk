@@ -1,3 +1,5 @@
+"""Core pipeline output tests."""
+
 import tomllib
 from pathlib import Path
 
@@ -8,6 +10,7 @@ from tests.helpers.fakes import pipeline_embedding_client, static_generation_cli
 
 
 def test_pipeline_writes_toml_outputs(tmp_path: Path) -> None:
+    """Verifies the pipeline writes all required TOML artifacts with expected fields."""
     settings = load_settings(Path("config/defaults.toml"))
     settings = settings.model_copy(update={"output_dir": tmp_path})
     result = run_pipeline(

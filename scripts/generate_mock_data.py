@@ -1,3 +1,5 @@
+"""Generates deterministic mock input files for local runs and tests."""
+
 from __future__ import annotations
 
 import random
@@ -11,6 +13,15 @@ CONCERNS = ["turnaround_time", "reimbursement", "evidence_strength", "workflow_f
 
 
 def _make_market_rows(scale: int, rng: random.Random) -> list[dict[str, object]]:
+    """Builds synthetic market intelligence rows.
+
+    Args:
+        scale: Number of providers to create.
+        rng: Seeded random generator.
+
+    Returns:
+        Mock market rows.
+    """
     rows: list[dict[str, object]] = []
     for i in range(scale):
         idx = i + 1
@@ -31,6 +42,15 @@ def _make_market_rows(scale: int, rng: random.Random) -> list[dict[str, object]]
 
 
 def _make_crm_rows(scale: int, rng: random.Random) -> list[dict[str, object]]:
+    """Builds synthetic CRM note rows.
+
+    Args:
+        scale: Number of note rows to create.
+        rng: Seeded random generator.
+
+    Returns:
+        Mock CRM rows.
+    """
     rows: list[dict[str, object]] = []
     for i in range(scale):
         provider_id = f"P{i + 1:03d}"
@@ -52,6 +72,12 @@ def _make_crm_rows(scale: int, rng: random.Random) -> list[dict[str, object]]:
 
 
 def _kb_markdown() -> str:
+    """Builds the small deterministic markdown knowledge base.
+
+    Returns:
+        Markdown text for the local KB fixture.
+    """
+    # Keep the KB tiny and deterministic so local runs and tests stay reproducible.
     return """# Tempus Product Knowledge
 
 ## Turnaround Time
@@ -66,6 +92,14 @@ EMR integration available with 24-hour support response.
 
 
 def generate_mock_data(output_dir: Path, seed: int, scale: int) -> None:
+    """Writes deterministic mock input files to disk.
+
+    Args:
+        output_dir: Target directory for the generated files.
+        seed: Seed used for reproducible pseudo-random values.
+        scale: Number of mock provider and CRM rows to generate.
+    """
+    # Market and CRM rows share one seeded RNG so fixture generation is stable across runs.
     output_dir.mkdir(parents=True, exist_ok=True)
     rng = random.Random(seed)
     market = pl.DataFrame(_make_market_rows(scale=scale, rng=rng))
@@ -76,6 +110,7 @@ def generate_mock_data(output_dir: Path, seed: int, scale: int) -> None:
 
 
 def main() -> None:
+    """Runs the script with repo-default arguments."""
     generate_mock_data(output_dir=Path("data/mock"), seed=42, scale=25)
 
 

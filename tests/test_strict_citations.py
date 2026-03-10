@@ -1,3 +1,5 @@
+"""Strict citation enforcement tests."""
+
 import tomllib
 from pathlib import Path
 
@@ -7,6 +9,7 @@ from tests.helpers.fakes import ConstantEmbeddingClient, static_generation_clien
 
 
 def test_strict_citations_sanitizes_and_reduces_confidence(tmp_path: Path) -> None:
+    """Verifies strict citation mode strips invalid citations and lowers confidence."""
     settings = load_settings(Path("config/defaults.toml")).model_copy(
         update={"output_dir": tmp_path}
     )

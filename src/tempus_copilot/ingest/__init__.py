@@ -1,1 +1,1 @@
-"""Data ingestion modules."""
+"""Load external source files into typed application models."""

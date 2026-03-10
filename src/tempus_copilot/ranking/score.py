@@ -1,3 +1,5 @@
+"""Compute ranked provider opportunities from market and CRM signals."""
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -17,6 +19,17 @@ def rank_providers(
     weights: RankingWeights,
     calibration: RankingCalibration,
 ) -> list[RankedProvider]:
+    """Rank providers by weighted opportunity score.
+
+    Args:
+        providers: Market-intelligence provider records.
+        crm_notes: CRM notes tied to providers.
+        weights: Weighting terms for each score component.
+        calibration: Calibration values for specialty fit and concern severity.
+
+    Returns:
+        Providers sorted from highest to lowest score.
+    """
     note_counts: dict[str, int] = defaultdict(int)
     note_severity_totals: dict[str, float] = defaultdict(float)
     for note in crm_notes:
@@ -38,6 +51,8 @@ def rank_providers(
         fit_score = provider.adoption_signal * specialty_fit
         note_count = max(note_counts[provider.provider_id], 1)
         avg_severity = note_severity_totals[provider.provider_id] / note_count
+        # Urgency rises with both note count and severity, but is capped so
+        # it does not dominate the overall rank.
         objection_score = min(avg_severity * (note_counts[provider.provider_id] / 2.0), 1.0)
         recency_score = 1.0 / (1.0 + float(provider.last_interaction_days))
         score = (

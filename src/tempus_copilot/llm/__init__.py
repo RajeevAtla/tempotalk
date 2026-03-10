@@ -1,1 +1,1 @@
-"""LLM adapters."""
+"""Generation client adapters and runtime helpers."""

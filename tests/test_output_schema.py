@@ -1,3 +1,5 @@
+"""Output schema validation tests."""
+
 from pathlib import Path
 
 import tomli_w
@@ -7,6 +9,7 @@ from tests.helpers.output_builders import write_minimal_outputs
 
 
 def test_validate_run_outputs_detects_checksum_mismatch(tmp_path: Path) -> None:
+    """Verifies checksum mismatches are reported by the validator."""
     run_dir = tmp_path / "run"
     run_dir.mkdir(parents=True)
     write_minimal_outputs(run_dir)
@@ -19,6 +22,7 @@ def test_validate_run_outputs_detects_checksum_mismatch(tmp_path: Path) -> None:
 
 
 def test_validate_run_outputs_without_metadata_has_no_checksum_error(tmp_path: Path) -> None:
+    """Verifies missing metadata does not trigger a checksum mismatch error."""
     run_dir = tmp_path / "run"
     run_dir.mkdir(parents=True)
     write_minimal_outputs(run_dir)
@@ -28,6 +32,7 @@ def test_validate_run_outputs_without_metadata_has_no_checksum_error(tmp_path: P
 
 
 def test_parse_toml_and_checksum_happy_path(tmp_path: Path) -> None:
+    """Verifies TOML parsing and checksum validation succeed for valid outputs."""
     run_dir = tmp_path / "run"
     run_dir.mkdir(parents=True)
     write_minimal_outputs(run_dir)

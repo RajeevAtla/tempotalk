@@ -1,3 +1,5 @@
+"""Pipeline support helper tests."""
+
 from __future__ import annotations
 
 from hashlib import sha256
@@ -25,6 +27,7 @@ def test_ensure_inputs_is_noop_when_files_exist(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verifies input generation is skipped when all configured files already exist."""
     data_dir = tmp_path / "inputs"
     data_dir.mkdir(parents=True, exist_ok=True)
     for file_name in ("market_intelligence.csv", "crm_notes.csv", "product_kb.md"):
@@ -38,6 +41,13 @@ def test_ensure_inputs_is_noop_when_files_exist(
     )
 
     def fail_generate(output_dir: Path, seed: int, scale: int) -> None:
+        """Fail generate.
+        
+        Args:
+            output_dir: Filesystem path for output dir.
+            seed: Seed.
+            scale: Scale.
+        """
         raise AssertionError(f"unexpected generation {output_dir} {seed} {scale}")
 
     monkeypatch.setattr("tempus_copilot.pipeline_support.generate_mock_data", fail_generate)
@@ -48,6 +58,7 @@ def test_ensure_inputs_generates_files_when_missing(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Verifies missing inputs trigger support-layer mock-data generation."""
     data_dir = tmp_path / "missing"
     settings = load_settings(Path("config/defaults.toml")).model_copy(
         update={
@@ -59,6 +70,13 @@ def test_ensure_inputs_generates_files_when_missing(
     called = {"value": False}
 
     def fake_generate(output_dir: Path, seed: int, scale: int) -> None:
+        """Fake generate.
+        
+        Args:
+            output_dir: Filesystem path for output dir.
+            seed: Seed.
+            scale: Scale.
+        """
         called["value"] = True
         output_dir.mkdir(parents=True, exist_ok=True)
         (output_dir / "market_intelligence.csv").write_text("market", encoding="utf-8")
@@ -71,6 +89,7 @@ def test_ensure_inputs_generates_files_when_missing(
 
 
 def test_write_toml_and_checksum_helpers_round_trip(tmp_path: Path) -> None:
+    """Verifies TOML writing and checksum helpers produce stable outputs."""
     output_path = tmp_path / "sample.toml"
     write_toml(output_path, {"schema_version": "1.0.0", "values": ["a", "b"]})
     assert output_path.exists()
@@ -80,6 +99,7 @@ def test_write_toml_and_checksum_helpers_round_trip(tmp_path: Path) -> None:
 
 
 def test_baml_source_path_default_and_explicit_hash_computation(tmp_path: Path) -> None:
+    """Verifies default and explicit BAML hash computations both produce values."""
     source_path = baml_source_path()
     assert source_path == Path("baml_src/sales_copilot.baml")
     default_hashes = compute_baml_hashes()
@@ -98,6 +118,7 @@ def test_baml_source_path_default_and_explicit_hash_computation(tmp_path: Path) 
 
 
 def test_build_query_chunk_and_retrieval_helpers() -> None:
+    """Verifies retrieval helper builders return the expected row shapes."""
     assert (
         build_query_text("P001", "Lung", "general")
         == "Provider P001 with tumor focus Lung. Address concern: general."
@@ -127,11 +148,20 @@ def test_build_query_chunk_and_retrieval_helpers() -> None:
 
 
 def test_build_chunk_vectors_returns_default_zeros_for_empty_embeddings() -> None:
+    """Verifies empty embedding results are replaced with zero vectors."""
     chunks: list[KBChunk] = [
         {"chunk_id": "product_kb.md:0", "source": "product_kb.md", "text": "chunk text"}
     ]
 
     def empty_embed_texts(texts: list[str]) -> np.ndarray:
+        """Empty embed texts.
+        
+        Args:
+            texts: Texts.
+        
+        Returns:
+            Computed result.
+        """
         assert texts == ["chunk text"]
         return np.empty((0, 0), dtype=np.float32)
 

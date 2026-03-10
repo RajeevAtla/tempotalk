@@ -1,1 +1,1 @@
-"""Ranking logic."""
+"""Provider ranking utilities."""
