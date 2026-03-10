@@ -11,8 +11,11 @@ from tempus_copilot.ui_service import (
     SettingsOverride,
     apply_settings_overrides,
     discover_run_dirs,
+    list_artifact_files,
     load_run_summary,
     load_ui_settings,
+    load_validation_report,
+    most_recent_run_dir,
     run_pipeline_from_ui,
     validate_run_summary,
 )
@@ -99,6 +102,12 @@ def test_discover_run_dirs_returns_sorted_run_directories(tmp_path: Path) -> Non
         tmp_path / "run_20260310_010000",
         tmp_path / "run_20260309_235959",
     ]
+
+
+def test_most_recent_run_dir_returns_latest_run(tmp_path: Path) -> None:
+    (tmp_path / "run_20260310_010000").mkdir()
+    (tmp_path / "run_20260309_235959").mkdir()
+    assert most_recent_run_dir(tmp_path) == tmp_path / "run_20260310_010000"
 
 
 def test_validate_run_summary_returns_errors_for_invalid_run(tmp_path: Path) -> None:
@@ -189,6 +198,37 @@ def test_load_run_summary_parses_outputs_into_display_rows(tmp_path: Path) -> No
     assert summary.metadata["provider_count"] == 1
     assert not summary.validation.is_valid
     assert summary.validation.errors == ["Checksum mismatch between metadata and outputs"]
+
+
+def test_load_validation_report_groups_file_statuses_and_checksum(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_20260310_121212"
+    write_valid_run_dir(run_dir)
+    metadata = {
+        "schema_version": "1.0.0",
+        "output_checksum_sha256": "mismatch",
+        "baml_schema_sha256": "schema",
+        "baml_prompt_sha256": "prompt",
+    }
+    (run_dir / "run_metadata.toml").write_bytes(tomli_w.dumps(metadata).encode("utf-8"))
+
+    report = load_validation_report(run_dir)
+
+    assert report.run_dir == run_dir
+    assert report.checksum_error == "Checksum mismatch between metadata and outputs"
+    assert report.file_statuses[0].label == "Ranked Providers"
+    assert report.file_statuses[0].is_valid
+    assert not report.is_valid
+
+
+def test_list_artifact_files_returns_expected_download_entries(tmp_path: Path) -> None:
+    run_dir = tmp_path / "run_20260310_101010"
+    write_valid_run_dir(run_dir)
+
+    artifacts = list_artifact_files(run_dir)
+
+    assert artifacts[0].label == "Ranked Providers"
+    assert artifacts[0].exists
+    assert artifacts[0].download_name == "run_20260310_101010_ranked_providers.toml"
 
 
 def test_load_run_summary_handles_missing_files(tmp_path: Path) -> None:

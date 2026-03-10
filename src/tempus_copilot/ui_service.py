@@ -1,14 +1,21 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TypedDict, cast
 
 from tempus_copilot.config import Settings, load_settings
-from tempus_copilot.output_schema import parse_toml, validate_run_outputs
+from tempus_copilot.output_schema import REQUIRED_TOP_LEVEL, parse_toml, validate_run_outputs
 from tempus_copilot.pipeline import run_pipeline
 
 DEFAULT_CONFIG_PATH = Path("config/defaults.toml")
+ARTIFACT_LABELS = {
+    "ranked_providers.toml": "Ranked Providers",
+    "objection_handlers.toml": "Objection Handlers",
+    "meeting_scripts.toml": "Meeting Scripts",
+    "retrieval_debug.toml": "Retrieval Debug",
+    "run_metadata.toml": "Run Metadata",
+}
 
 
 class ProviderTableRow(TypedDict):
@@ -115,7 +122,45 @@ class RunBundle:
     scripts: list[MeetingScriptView]
     retrieval_debug: list[RetrievalDebugView]
     metadata: RunMetadataView
-    validation_errors: list[str]
+    validation_errors: list[str] = field(default_factory=list)
+    validation_report: ValidationReport | None = None
+    artifacts: list[ArtifactFileView] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class ArtifactFileView:
+    file_name: str
+    label: str
+    path: Path
+    exists: bool
+
+    @property
+    def download_name(self) -> str:
+        return f"{self.path.parent.name}_{self.file_name}"
+
+
+@dataclass(frozen=True)
+class ValidationFileStatus:
+    file_name: str
+    label: str
+    exists: bool
+    errors: list[str]
+
+    @property
+    def is_valid(self) -> bool:
+        return self.exists and not self.errors
+
+
+@dataclass(frozen=True)
+class ValidationReport:
+    run_dir: Path
+    file_statuses: list[ValidationFileStatus]
+    checksum_error: str | None
+    errors: list[str]
+
+    @property
+    def is_valid(self) -> bool:
+        return not self.errors
 
 
 @dataclass(frozen=True)
@@ -162,6 +207,8 @@ class RunSummary:
     generation_model: str
     embedding_model: str
     validation_errors: list[str]
+    objection_count: int = 0
+    script_count: int = 0
 
 
 @dataclass(frozen=True)
@@ -278,6 +325,13 @@ def discover_run_dirs(output_dir: Path) -> list[Path]:
     return run_dirs
 
 
+def most_recent_run_dir(output_dir: Path) -> Path | None:
+    run_dirs = discover_run_dirs(output_dir)
+    if not run_dirs:
+        return None
+    return run_dirs[0]
+
+
 def load_run_summary(run_dir: Path) -> LoadedRunSummary:
     return LoadedRunSummary(
         run_dir=run_dir,
@@ -294,8 +348,53 @@ def validate_run_summary(run_dir: Path) -> ValidationSummary:
     return ValidationSummary(run_dir=run_dir, errors=validate_run_outputs(run_dir))
 
 
+def load_validation_report(run_dir: Path) -> ValidationReport:
+    errors = validate_run_outputs(run_dir)
+    checksum_error: str | None = None
+    file_statuses: list[ValidationFileStatus] = []
+    for file_name in REQUIRED_TOP_LEVEL:
+        path = run_dir / file_name
+        file_errors = [
+            error
+            for error in errors
+            if error.startswith(f"Missing output file: {file_name}")
+            or error.startswith(f"{file_name} missing key:")
+        ]
+        file_statuses.append(
+            ValidationFileStatus(
+                file_name=file_name,
+                label=ARTIFACT_LABELS.get(file_name, file_name),
+                exists=path.exists(),
+                errors=file_errors,
+            )
+        )
+    for error in errors:
+        if error.startswith("Checksum mismatch"):
+            checksum_error = error
+            break
+    return ValidationReport(
+        run_dir=run_dir,
+        file_statuses=file_statuses,
+        checksum_error=checksum_error,
+        errors=errors,
+    )
+
+
+def list_artifact_files(run_dir: Path) -> list[ArtifactFileView]:
+    return [
+        ArtifactFileView(
+            file_name=file_name,
+            label=ARTIFACT_LABELS.get(file_name, file_name),
+            path=run_dir / file_name,
+            exists=(run_dir / file_name).exists(),
+        )
+        for file_name in REQUIRED_TOP_LEVEL
+    ]
+
+
 def load_run_bundle(run_dir: Path) -> RunBundle:
     summary = load_run_summary(run_dir)
+    validation_report = load_validation_report(run_dir)
     return RunBundle(
         run_dir=summary.run_dir,
         ranked_providers=[
@@ -349,6 +448,8 @@ def load_run_bundle(run_dir: Path) -> RunBundle:
         ],
         metadata=summary.metadata,
         validation_errors=summary.validation.errors,
+        validation_report=validation_report,
+        artifacts=list_artifact_files(run_dir),
     )
 
 
@@ -365,6 +466,8 @@ def summarize_runs(output_dir: Path) -> list[RunSummary]:
                 generation_model=loaded.metadata.get("generation_model", ""),
                 embedding_model=loaded.metadata.get("embedding_model", ""),
                 validation_errors=validation_errors,
+                objection_count=len(loaded.objections),
+                script_count=len(loaded.meeting_scripts),
             )
         )
     return summaries
