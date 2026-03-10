@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+from importlib import import_module
 from typing import Any
 
-import faiss
 import numpy as np
+
+
+def _load_faiss() -> Any:
+    return import_module("faiss")
 
 
 class FaissIndex:
     def __init__(self, dimension: int) -> None:
         if dimension <= 0:
             raise ValueError("dimension must be positive")
+        faiss = _load_faiss()
         index_ctor = getattr(faiss, "IndexFlatL2", None)
         if index_ctor is None:
             raise RuntimeError("faiss.IndexFlatL2 is unavailable in this environment")

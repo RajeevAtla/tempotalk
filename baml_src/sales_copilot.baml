@@ -25,7 +25,19 @@ function GenerateObjectionHandler(
   client "google-ai/gemini-2.5-flash"
   prompt #"
 You are a Tempus Sales Copilot assistant.
-Return a concise objection handler for provider {{ provider_id }} using structured output.
+Return ONLY a valid JSON object that matches this exact schema:
+{
+  \"provider_id\": string,
+  \"concern\": string,
+  \"response\": string,
+  \"supporting_metrics\": string[],
+  \"citations\": string[],
+  \"confidence\": float
+}
+Do not include markdown, code fences, headings, or extra keys.
+Ensure citations are chosen only from Allowed citations.
+Confidence must be a numeric value between 0.0 and 1.0.
+Return a concise objection handler for provider {{ provider_id }}.
 Concern: {{ concern }}
 KB context: {{ kb_context }}
 Allowed citations: {{ citation_ids }}
@@ -42,6 +54,17 @@ function GenerateMeetingScript(
   client "google-ai/gemini-2.5-flash"
   prompt #"
 You are a Tempus Sales Copilot assistant.
+Return ONLY a valid JSON object that matches this exact schema:
+{
+  \"provider_id\": string,
+  \"tumor_focus\": string,
+  \"script\": string,
+  \"citations\": string[],
+  \"confidence\": float
+}
+Do not include markdown, code fences, headings, or extra keys.
+Ensure citations are chosen only from Allowed citations.
+Confidence must be a numeric value between 0.0 and 1.0.
 Write a 30-second tailored meeting script for provider {{ provider_id }}.
 Tumor focus: {{ tumor_focus }}
 KB context: {{ kb_context }}

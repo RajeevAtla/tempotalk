@@ -46,6 +46,11 @@ addopts = "-q"
 markers = [
   "integration: tests that require external services and credentials",
 ]
+filterwarnings = [
+  "ignore:.*SwigPyPacked has no __module__ attribute.*:DeprecationWarning",
+  "ignore:.*SwigPyObject has no __module__ attribute.*:DeprecationWarning",
+  "ignore:.*swigvarlink has no __module__ attribute.*:DeprecationWarning",
+]
 
 [tool.ty.src]
 include = ["src", "tests"]
