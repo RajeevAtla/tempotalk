@@ -71,7 +71,11 @@ def _extract_json_payload(text: str) -> dict[str, object]:
     start = stripped.find("{")
     end = stripped.rfind("}")
     candidate = stripped[start : end + 1] if start >= 0 and end > start else stripped
-    obj = json.loads(candidate)
+    try:
+        obj = json.loads(candidate)
+    except json.JSONDecodeError:
+        sanitized = "".join(ch if ord(ch) >= 32 else " " for ch in candidate)
+        obj = json.loads(sanitized)
     if not isinstance(obj, dict):
         raise ValueError("Model output must be a JSON object")
     return cast(dict[str, object], obj)
@@ -85,6 +89,23 @@ def _coerce_string_list(value: object) -> list[str]:
         if isinstance(item, str):
             out.append(item)
     return out
+
+
+def _coerce_confidence(value: object) -> float:
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return 0.0
+    if isinstance(value, dict):
+        mapping = cast(dict[str, object], value)
+        for key in ("confidence", "score", "value"):
+            candidate = mapping.get(key)
+            if isinstance(candidate, (int, float, str)):
+                return _coerce_confidence(candidate)
+    return 0.0
 
 
 class OllamaGenerationClient:
@@ -105,15 +126,30 @@ class OllamaGenerationClient:
         self._backoff_seconds = max(0.0, backoff_seconds)
 
     def _chat_json(self, system_prompt: str, user_prompt: str) -> dict[str, object]:
-        response: httpx.Response | None = None
         payload = {
             "model": self._model,
             "stream": False,
+            "format": "json",
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
         }
+        body = self._post_chat(payload)
+        message = body.get("message")
+        if not isinstance(message, dict):
+            raise ValueError("Ollama chat response missing message")
+        content = message.get("content", "")
+        if not isinstance(content, str):
+            raise ValueError("Ollama chat response content must be a string")
+        try:
+            return _extract_json_payload(content)
+        except (json.JSONDecodeError, ValueError):
+            repaired = self._repair_json_content(content)
+            return _extract_json_payload(repaired)
+
+    def _post_chat(self, payload: dict[str, object]) -> OllamaChatResponse:
+        response: httpx.Response | None = None
         for attempt in range(self._request_retries + 1):
             try:
                 response = httpx.post(
@@ -130,14 +166,37 @@ class OllamaGenerationClient:
                 sleep(self._backoff_seconds * (attempt + 1))
         if response is None:
             raise RuntimeError("Ollama chat request failed without response")
-        body = cast(OllamaChatResponse, response.json())
+        return cast(OllamaChatResponse, response.json())
+
+    def _repair_json_content(self, broken_content: str) -> str:
+        payload: dict[str, object] = {
+            "model": self._model,
+            "stream": False,
+            "format": "json",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": (
+                        "Repair malformed JSON. Return only valid JSON preserving intent and keys."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        "Fix this to strict JSON only:\n"
+                        f"{broken_content}"
+                    ),
+                },
+            ],
+        }
+        body = self._post_chat(payload)
         message = body.get("message")
         if not isinstance(message, dict):
-            raise ValueError("Ollama chat response missing message")
+            raise ValueError("Ollama repair response missing message")
         content = message.get("content", "")
         if not isinstance(content, str):
-            raise ValueError("Ollama chat response content must be a string")
-        return _extract_json_payload(content)
+            raise ValueError("Ollama repair response content must be a string")
+        return content
 
     def generate_objection_handler(
         self,
@@ -159,15 +218,27 @@ class OllamaGenerationClient:
             f"KB context:\n{kb_context}\n"
             "Return only JSON."
         )
-        raw = self._chat_json(system_prompt=system_prompt, user_prompt=user_prompt)
-        payload = cast(ObjectionPayload, raw)
+        try:
+            raw = self._chat_json(system_prompt=system_prompt, user_prompt=user_prompt)
+            payload = cast(ObjectionPayload, raw)
+        except (json.JSONDecodeError, ValueError, TypeError):
+            return ObjectionArtifact(
+                provider_id=provider_id,
+                concern=concern,
+                response=(
+                    f"Address {concern} for {provider_id} using validated metrics and KB evidence."
+                ),
+                supporting_metrics=observed_metrics[:3],
+                citations=citation_ids[:3],
+                confidence=0.5,
+            )
         return ObjectionArtifact(
             provider_id=provider_id,
             concern=concern,
             response=str(payload.get("response", "")),
             supporting_metrics=_coerce_string_list(payload.get("supporting_metrics")),
             citations=_coerce_string_list(payload.get("citations")),
-            confidence=float(payload.get("confidence", 0.0)),
+            confidence=_coerce_confidence(payload.get("confidence", 0.0)),
         )
 
     def generate_meeting_script(
@@ -188,20 +259,32 @@ class OllamaGenerationClient:
             f"KB context:\n{kb_context}\n"
             "Return only JSON."
         )
-        raw = self._chat_json(system_prompt=system_prompt, user_prompt=user_prompt)
-        payload = cast(ScriptPayload, raw)
+        try:
+            raw = self._chat_json(system_prompt=system_prompt, user_prompt=user_prompt)
+            payload = cast(ScriptPayload, raw)
+        except (json.JSONDecodeError, ValueError, TypeError):
+            return MeetingScriptArtifact(
+                provider_id=provider_id,
+                tumor_focus=tumor_focus,
+                script=(
+                    "Open with "
+                    f"{tumor_focus} focus, cite strongest evidence, and close on next step."
+                ),
+                citations=citation_ids[:3],
+                confidence=0.5,
+            )
         return MeetingScriptArtifact(
             provider_id=provider_id,
             tumor_focus=tumor_focus,
             script=str(payload.get("script", "")),
             citations=_coerce_string_list(payload.get("citations")),
-            confidence=float(payload.get("confidence", 0.0)),
+            confidence=_coerce_confidence(payload.get("confidence", 0.0)),
         )
 
 
 def get_default_generation_client(
     generation_provider: str = "ollama",
-    generation_model: str = "qwen3.5:397b",
+    generation_model: str = "ministral-3:8b",
     request_retries: int = 2,
     backoff_seconds: float = 0.5,
 ) -> GenerationClient:

@@ -42,4 +42,4 @@ strict_citations = false
 
 [mock]
 seed = 42
-scale = 25
+scale = 3

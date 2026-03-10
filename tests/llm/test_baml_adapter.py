@@ -10,7 +10,7 @@ from tempus_copilot.llm.baml_adapter import OllamaGenerationClient, get_default_
 def test_ollama_generation_client_requires_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("OLLAMA_API_KEY", raising=False)
     with pytest.raises(RuntimeError):
-        OllamaGenerationClient(model="qwen3.5:397b")
+        OllamaGenerationClient(model="ministral-3:8b")
 
 
 def test_ollama_generation_client_rejects_localhost_base_url(
@@ -19,7 +19,7 @@ def test_ollama_generation_client_rejects_localhost_base_url(
     monkeypatch.setenv("OLLAMA_API_KEY", "test-key")
     monkeypatch.setenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
     with pytest.raises(ValueError):
-        OllamaGenerationClient(model="qwen3.5:397b")
+        OllamaGenerationClient(model="ministral-3:8b")
 
 
 def test_ollama_generation_client_generates_artifacts(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -60,7 +60,7 @@ def test_ollama_generation_client_generates_artifacts(monkeypatch: pytest.Monkey
         return FakeResponse(payloads.pop(0))
 
     monkeypatch.setattr(adapter_module.httpx, "post", fake_post)
-    client = OllamaGenerationClient(model="qwen3.5:397b")
+    client = OllamaGenerationClient(model="ministral-3:8b")
     objection = client.generate_objection_handler(
         provider_id="P001",
         concern="turnaround_time",
@@ -109,7 +109,7 @@ def test_ollama_generation_client_retries_on_http_error(
 
     monkeypatch.setattr(adapter_module.httpx, "post", fake_post)
     monkeypatch.setattr(adapter_module, "sleep", lambda _: None)
-    client = OllamaGenerationClient(model="qwen3.5:397b", request_retries=1)
+    client = OllamaGenerationClient(model="ministral-3:8b", request_retries=1)
     out = client.generate_objection_handler(
         provider_id="P001",
         concern="turnaround_time",

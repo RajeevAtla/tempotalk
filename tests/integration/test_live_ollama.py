@@ -12,7 +12,7 @@ pytestmark = pytest.mark.integration
     reason="RUN_OLLAMA_INTEGRATION and OLLAMA_API_KEY must be set",
 )
 def test_live_ollama_generation_round_trip() -> None:
-    client = OllamaGenerationClient(model="qwen3.5:397b")
+    client = OllamaGenerationClient(model="ministral-3:8b")
     objection = client.generate_objection_handler(
         provider_id="P001",
         concern="turnaround_time",
