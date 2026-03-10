@@ -233,3 +233,50 @@ def test_render_validate_page_shows_success(monkeypatch: pytest.MonkeyPatch) -> 
     streamlit_app.render_validate_page(Path("config/defaults.toml"))
 
     assert calls == ["Validation passed for `outputs/run_20260310_120000`."]
+
+
+def test_validation_cards_include_checksum_state() -> None:
+    summary = ValidationSummary(
+        run_dir=Path("outputs/run_1"),
+        errors=["Checksum mismatch between metadata and outputs"],
+    )
+    cards = streamlit_app._validation_cards(summary)
+    checksum = next(card for card in cards if card.title == "checksum")
+    assert checksum.state == "error"
+
+
+def test_filtered_providers_applies_query_and_min_score() -> None:
+    bundle = RunBundle(
+        run_dir=Path("outputs/run_1"),
+        ranked_providers=[
+            RankedProviderView(
+                provider_id="P001",
+                physician_name="Dr. Atlas",
+                institution="North",
+                score=0.82,
+                rationale="lung fit",
+                factor_scores={},
+                calibration_terms={},
+                factor_contributions={},
+            ),
+            RankedProviderView(
+                provider_id="P002",
+                physician_name="Dr. Birch",
+                institution="South",
+                score=0.55,
+                rationale="lower volume",
+                factor_scores={},
+                calibration_terms={},
+                factor_contributions={},
+            ),
+        ],
+        objections=[],
+        scripts=[],
+        retrieval_debug=[],
+        metadata=RunMetadataView(),
+        validation_errors=[],
+    )
+
+    filtered = streamlit_app._filtered_providers(bundle, "atlas", 0.6)
+
+    assert [provider.provider_id for provider in filtered] == ["P001"]
