@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
-from typing import Mapping, TypedDict
+from typing import TypedDict
 
 import numpy as np
 from tomli_w import dump as toml_dump
@@ -19,9 +20,6 @@ from tempus_copilot.models import PipelineResult
 from tempus_copilot.rag.chunking import chunk_text
 from tempus_copilot.rag.embed import (
     EmbeddingClient,
-    FallbackEmbeddingClient,
-    GeminiEmbeddingClient,
-    HashEmbeddingClient,
     OllamaEmbeddingClient,
 )
 from tempus_copilot.rag.faiss_index import FaissIndex
@@ -141,26 +139,14 @@ def _build_query_text(provider_id: str, tumor_focus: str, concern: str) -> str:
 
 
 def _default_embedding_client(settings: Settings) -> EmbeddingClient:
-    fallback = HashEmbeddingClient(dimension=settings.rag.embedding_dimension)
     provider = settings.models.embedding_provider.lower().strip()
-    if provider == "google":
-        try:
-            primary = GeminiEmbeddingClient(
-                model=settings.models.embedding_model,
-                request_retries=settings.rag.request_retries,
-                backoff_seconds=settings.rag.backoff_seconds,
-            )
-            return FallbackEmbeddingClient(primary=primary, fallback=fallback)
-        except RuntimeError:
-            return fallback
-    if provider == "ollama":
-        primary = OllamaEmbeddingClient(
-            model=settings.models.embedding_model,
-            request_retries=settings.rag.request_retries,
-            backoff_seconds=settings.rag.backoff_seconds,
-        )
-        return FallbackEmbeddingClient(primary=primary, fallback=fallback)
-    return fallback
+    if provider != "ollama":
+        raise ValueError("Only 'ollama' embedding_provider is supported")
+    return OllamaEmbeddingClient(
+        model=settings.models.embedding_model,
+        request_retries=settings.rag.request_retries,
+        backoff_seconds=settings.rag.backoff_seconds,
+    )
 
 
 def _enforce_citations(

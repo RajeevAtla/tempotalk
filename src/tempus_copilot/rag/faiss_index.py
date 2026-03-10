@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from importlib import import_module
-from typing import Mapping, Protocol, Sequence, TypedDict, cast
+from typing import Protocol, TypedDict, cast
 
 import numpy as np
 

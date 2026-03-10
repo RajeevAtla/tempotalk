@@ -4,10 +4,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from tempus_copilot import pipeline as pipeline_module
 from tempus_copilot.config import load_settings
 from tempus_copilot.models import MeetingScriptArtifact, ObjectionArtifact
 from tempus_copilot.pipeline import run_pipeline
-from tempus_copilot import pipeline as pipeline_module
 
 
 class StableGenerationClient:
@@ -120,40 +120,22 @@ def test_extract_metrics_deduplicates_values() -> None:
     assert metrics.count("99.1") == 1
 
 
-def test_default_embedding_client_returns_fallback_variants(
+def test_default_embedding_client_returns_ollama_client(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     settings = load_settings(Path("config/defaults.toml"))
+    monkeypatch.setenv("OLLAMA_API_KEY", "test-key")
+    monkeypatch.setenv("OLLAMA_BASE_URL", "https://ollama.com")
+    client = pipeline_module._default_embedding_client(settings)
+    assert isinstance(client, pipeline_module.OllamaEmbeddingClient)
 
-    class DummyGemini:
-        def __init__(self, **_: object) -> None:
-            return None
-
-    monkeypatch.setattr(pipeline_module, "GeminiEmbeddingClient", DummyGemini)
-    google_client = pipeline_module._default_embedding_client(settings)
-    assert isinstance(google_client, pipeline_module.FallbackEmbeddingClient)
-
-    nongoogle = settings.model_copy(
+    non_ollama = settings.model_copy(
         update={
-            "models": settings.models.model_copy(update={"embedding_provider": "local"}),
+            "models": settings.models.model_copy(update={"embedding_provider": "google"}),
         }
     )
-    fallback_only = pipeline_module._default_embedding_client(nongoogle)
-    assert isinstance(fallback_only, pipeline_module.HashEmbeddingClient)
-
-
-def test_default_embedding_client_falls_back_on_runtime_error(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    settings = load_settings(Path("config/defaults.toml"))
-
-    class RaisingGemini:
-        def __init__(self, **_: object) -> None:
-            raise RuntimeError("missing key")
-
-    monkeypatch.setattr(pipeline_module, "GeminiEmbeddingClient", RaisingGemini)
-    client = pipeline_module._default_embedding_client(settings)
-    assert isinstance(client, pipeline_module.HashEmbeddingClient)
+    with pytest.raises(ValueError):
+        pipeline_module._default_embedding_client(non_ollama)
 
 
 def test_pipeline_handles_empty_kb_embedding_matrix(tmp_path: Path) -> None:

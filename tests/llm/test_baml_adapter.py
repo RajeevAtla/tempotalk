@@ -1,158 +1,126 @@
-import sys
-from types import ModuleType
-from types import SimpleNamespace
+from typing import cast
 
+import httpx
 import pytest
 
-from tempus_copilot.llm import baml_adapter as baml_adapter_module
-from tempus_copilot.llm.baml_adapter import BamlGenerationClient, get_default_generation_client
+from tempus_copilot.llm import baml_adapter as adapter_module
+from tempus_copilot.llm.baml_adapter import OllamaGenerationClient, get_default_generation_client
 
 
-class FakeBamlClient:
-    def GenerateObjectionHandler(
-        self,
-        provider_id: str,
-        concern: str,
-        kb_context: str,
-        citation_ids: list[str],
-        observed_metrics: list[str],
-    ) -> object:
-        return SimpleNamespace(
-            provider_id=provider_id,
-            concern=concern,
-            response=f"{provider_id}:{concern}:{kb_context[:12]}",
-            supporting_metrics=observed_metrics,
-            citations=citation_ids,
-            confidence=0.88,
-        )
-
-    def GenerateMeetingScript(
-        self,
-        provider_id: str,
-        tumor_focus: str,
-        kb_context: str,
-        citation_ids: list[str],
-    ) -> object:
-        return SimpleNamespace(
-            provider_id=provider_id,
-            tumor_focus=tumor_focus,
-            script=f"{provider_id}:{tumor_focus}:{kb_context[:12]}",
-            citations=citation_ids,
-            confidence=0.83,
-        )
-
-
-def test_baml_adapter_uses_generated_client_shape() -> None:
-    adapter = BamlGenerationClient(client=FakeBamlClient())
-    objection = adapter.generate_objection_handler(
-        "P001",
-        "turnaround_time",
-        "context here",
-        citation_ids=["kb:1"],
-        observed_metrics=["8 days"],
-    )
-    script = adapter.generate_meeting_script("P001", "Lung", "context here", citation_ids=["kb:1"])
-    assert objection.response.startswith("P001:turnaround_time")
-    assert script.script.startswith("P001:Lung")
-    assert objection.citations == ["kb:1"]
-
-
-class FlakyBamlClient(FakeBamlClient):
-    def __init__(self) -> None:
-        self.calls = 0
-
-    def GenerateObjectionHandler(
-        self,
-        provider_id: str,
-        concern: str,
-        kb_context: str,
-        citation_ids: list[str],
-        observed_metrics: list[str],
-    ) -> object:
-        self.calls += 1
-        if self.calls == 1:
-            raise RuntimeError("transient parse failure")
-        return super().GenerateObjectionHandler(
-            provider_id=provider_id,
-            concern=concern,
-            kb_context=kb_context,
-            citation_ids=citation_ids,
-            observed_metrics=observed_metrics,
-        )
-
-
-class AlwaysFailBamlClient:
-    def GenerateObjectionHandler(self, **_: object) -> object:
-        raise RuntimeError("always fail")
-
-    def GenerateMeetingScript(self, **_: object) -> object:
-        raise RuntimeError("always fail")
-
-
-def test_baml_adapter_retries_and_succeeds() -> None:
-    flaky = FlakyBamlClient()
-    adapter = BamlGenerationClient(client=flaky, max_retries=1)
-    objection = adapter.generate_objection_handler(
-        "P001",
-        "turnaround_time",
-        "context here",
-        citation_ids=["kb:1"],
-        observed_metrics=["8 days"],
-    )
-    assert flaky.calls == 2
-    assert objection.provider_id == "P001"
-
-
-def test_baml_adapter_falls_back_after_retries_exhausted() -> None:
-    adapter = BamlGenerationClient(client=AlwaysFailBamlClient(), max_retries=1)
-    objection = adapter.generate_objection_handler(
-        "P001",
-        "turnaround_time",
-        "context here",
-        citation_ids=["kb:1"],
-        observed_metrics=["8 days"],
-    )
-    script = adapter.generate_meeting_script(
-        "P001",
-        "Lung",
-        "context here",
-        citation_ids=["kb:1"],
-    )
-    assert "response based on" in objection.response
-    assert "pitch using" in script.script
-
-
-def test_baml_adapter_uses_default_generated_client_when_not_provided(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    fake_module = ModuleType("baml_client.sync_client")
-    fake_default_client = object()
-    fake_module.b = fake_default_client
-    monkeypatch.setitem(sys.modules, "baml_client.sync_client", fake_module)
-    adapter = BamlGenerationClient(client=None)
-    assert adapter._client is fake_default_client
-
-
-def test_baml_adapter_invoke_missing_method_raises_attribute_error() -> None:
-    adapter = BamlGenerationClient(client=object())
-    with pytest.raises(AttributeError):
-        adapter._invoke("GenerateObjectionHandler", {})
-
-
-def test_baml_adapter_call_with_retry_internal_runtime_error_branch() -> None:
-    adapter = BamlGenerationClient(client=FakeBamlClient())
-    adapter._max_retries = -1
+def test_ollama_generation_client_requires_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OLLAMA_API_KEY", raising=False)
     with pytest.raises(RuntimeError):
-        adapter._call_with_retry(lambda **_: "ok", {})
+        OllamaGenerationClient(model="qwen3.5:397b")
 
 
-def test_get_default_generation_client_selects_baml_when_api_key_present(
+def test_ollama_generation_client_rejects_localhost_base_url(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    class SentinelClient:
-        pass
+    monkeypatch.setenv("OLLAMA_API_KEY", "test-key")
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+    with pytest.raises(ValueError):
+        OllamaGenerationClient(model="qwen3.5:397b")
 
-    monkeypatch.setattr(baml_adapter_module, "getenv", lambda _: "set")
-    monkeypatch.setattr(baml_adapter_module, "BamlGenerationClient", SentinelClient)
-    client = get_default_generation_client()
-    assert isinstance(client, SentinelClient)
+
+def test_ollama_generation_client_generates_artifacts(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OLLAMA_API_KEY", "test-key")
+    monkeypatch.setenv("OLLAMA_BASE_URL", "https://ollama.com")
+
+    class FakeResponse:
+        def __init__(self, payload: object) -> None:
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            if not isinstance(self._payload, dict):
+                raise ValueError("payload must be a dict")
+            return cast(dict[str, object], self._payload)
+
+    payloads = [
+        {
+            "message": {
+                "role": "assistant",
+                "content": (
+                    '{"response":"Use evidence.","supporting_metrics":["8 days"],'
+                    '"citations":["kb:1"],"confidence":0.88}'
+                ),
+            }
+        },
+        {
+            "message": {
+                "role": "assistant",
+                "content": '{"script":"Intro plan.","citations":["kb:1"],"confidence":0.82}',
+            }
+        },
+    ]
+
+    def fake_post(*_: object, **__: object) -> FakeResponse:
+        return FakeResponse(payloads.pop(0))
+
+    monkeypatch.setattr(adapter_module.httpx, "post", fake_post)
+    client = OllamaGenerationClient(model="qwen3.5:397b")
+    objection = client.generate_objection_handler(
+        provider_id="P001",
+        concern="turnaround_time",
+        kb_context="Average turnaround is 8 days.",
+        citation_ids=["kb:1"],
+        observed_metrics=["8 days"],
+    )
+    script = client.generate_meeting_script(
+        provider_id="P001",
+        tumor_focus="Lung",
+        kb_context="Average turnaround is 8 days.",
+        citation_ids=["kb:1"],
+    )
+    assert objection.provider_id == "P001"
+    assert objection.response == "Use evidence."
+    assert script.script == "Intro plan."
+
+
+def test_ollama_generation_client_retries_on_http_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OLLAMA_API_KEY", "test-key")
+    monkeypatch.setenv("OLLAMA_BASE_URL", "https://ollama.com")
+    calls = {"count": 0}
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return {
+                "message": {
+                    "role": "assistant",
+                    "content": (
+                        '{"response":"ok","supporting_metrics":[],"citations":["kb:1"],'
+                        '"confidence":0.9}'
+                    ),
+                }
+            }
+
+    def fake_post(*_: object, **__: object) -> FakeResponse:
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise httpx.HTTPError("temporary")
+        return FakeResponse()
+
+    monkeypatch.setattr(adapter_module.httpx, "post", fake_post)
+    monkeypatch.setattr(adapter_module, "sleep", lambda _: None)
+    client = OllamaGenerationClient(model="qwen3.5:397b", request_retries=1)
+    out = client.generate_objection_handler(
+        provider_id="P001",
+        concern="turnaround_time",
+        kb_context="context",
+        citation_ids=["kb:1"],
+        observed_metrics=["8 days"],
+    )
+    assert calls["count"] == 2
+    assert out.response == "ok"
+
+
+def test_get_default_generation_client_rejects_non_ollama_provider() -> None:
+    with pytest.raises(ValueError):
+        get_default_generation_client(generation_provider="google")

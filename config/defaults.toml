@@ -6,9 +6,9 @@ output_dir = "outputs"
 
 [models]
 generation_provider = "ollama"
-generation_model = "qwen3.5:0.8b"
+generation_model = "qwen3.5:397b"
 embedding_provider = "ollama"
-embedding_model = "qwen3-embedding:0.6b"
+embedding_model = "embeddinggemma"
 
 [ranking.weights]
 patient_volume = 0.45

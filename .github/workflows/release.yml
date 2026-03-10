@@ -48,6 +48,7 @@ jobs:
       - name: Integration tests
         env:
           RUN_OLLAMA_INTEGRATION: ${{ secrets.RUN_OLLAMA_INTEGRATION }}
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           OLLAMA_BASE_URL: ${{ secrets.OLLAMA_BASE_URL }}
         run: uv run pytest -q -m integration
 

@@ -25,20 +25,22 @@ uv run pytest -q -m integration
 
 ## Ollama Setup
 
-Start Ollama and pull required models:
+Generation uses Ollama Cloud and embeddings use local Ollama (`embeddinggemma`).
+Set environment variables (or `.env`):
 
 ```bash
-ollama pull qwen3.5:0.8b
-ollama pull qwen3-embedding:0.6b
+OLLAMA_API_KEY=your_ollama_cloud_api_key
+OLLAMA_BASE_URL=https://ollama.com
+OLLAMA_EMBED_BASE_URL=http://127.0.0.1:11434
 ```
 
-Optional env override:
+Pull the local embedding model:
 
 ```bash
-OLLAMA_BASE_URL=http://127.0.0.1:11434
+ollama pull embeddinggemma
 ```
 
-If Ollama is unavailable, the CLI falls back to deterministic local stubs for generation and embeddings.
+Only embeddings run locally. Generation remains cloud-only.
 
 ## Mock Data
 

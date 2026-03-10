@@ -22,7 +22,7 @@ function GenerateObjectionHandler(
   citation_ids: string[],
   observed_metrics: string[]
 ) -> ObjectionHandler {
-  client "ollama/qwen3.5:0.8b"
+  client "ollama/qwen3.5:397b"
   prompt #"
 You are a Tempus Sales Copilot assistant.
 Return ONLY a valid JSON object that matches this exact schema:
@@ -51,7 +51,7 @@ function GenerateMeetingScript(
   kb_context: string,
   citation_ids: string[]
 ) -> MeetingScript {
-  client "ollama/qwen3.5:0.8b"
+  client "ollama/qwen3.5:397b"
   prompt #"
 You are a Tempus Sales Copilot assistant.
 Return ONLY a valid JSON object that matches this exact schema:

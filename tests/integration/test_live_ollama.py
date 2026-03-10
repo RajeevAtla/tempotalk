@@ -4,13 +4,15 @@ import pytest
 
 from tempus_copilot.llm.baml_adapter import OllamaGenerationClient
 
-
 pytestmark = pytest.mark.integration
 
 
-@pytest.mark.skipif(not getenv("RUN_OLLAMA_INTEGRATION"), reason="RUN_OLLAMA_INTEGRATION not set")
+@pytest.mark.skipif(
+    (not getenv("RUN_OLLAMA_INTEGRATION")) or (not getenv("OLLAMA_API_KEY")),
+    reason="RUN_OLLAMA_INTEGRATION and OLLAMA_API_KEY must be set",
+)
 def test_live_ollama_generation_round_trip() -> None:
-    client = OllamaGenerationClient(model="qwen3.5:0.8b")
+    client = OllamaGenerationClient(model="qwen3.5:397b")
     objection = client.generate_objection_handler(
         provider_id="P001",
         concern="turnaround_time",
