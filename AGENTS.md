@@ -1,5 +1,9 @@
 # AGENTS.md
 
+## Subagent Use
+
+- Use subagents freely when it would help speedup development (prompt user if they aren't enabled)
+
 ## Typing Rule
 
 - Do not use the `Any` type anywhere in this repository.
