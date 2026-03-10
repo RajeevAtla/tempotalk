@@ -44,6 +44,8 @@
 - Add or update unit tests for every behavioral change.
 - Keep integration tests optional and environment-gated.
 - Do not rely on network calls in unit tests; mock external calls.
+- Maintain 100% statement and branch coverage for `src/tempus_copilot` and `streamlit_app.py`.
+- When coverage drops, add focused tests before extending the frontend or service layer further.
 
 ## Runtime Model Policy
 

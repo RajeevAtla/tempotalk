@@ -232,7 +232,7 @@ def test_render_validate_page_shows_success(monkeypatch: pytest.MonkeyPatch) -> 
 
     streamlit_app.render_validate_page(Path("config/defaults.toml"))
 
-    assert calls == ["Validation passed for `outputs/run_20260310_120000`."]
+    assert calls == [f"Validation passed for `{Path('outputs/run_20260310_120000')}`."]
 
 
 def test_validation_cards_include_checksum_state() -> None:
