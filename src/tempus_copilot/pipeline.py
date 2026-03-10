@@ -4,7 +4,7 @@ import re
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
-from typing import Any
+from typing import Mapping, TypedDict
 
 import numpy as np
 from tomli_w import dump as toml_dump
@@ -29,6 +29,50 @@ from tempus_copilot.ranking.score import rank_providers
 SCHEMA_VERSION = "1.0.0"
 
 
+class ObjectionRow(TypedDict):
+    provider_id: str
+    concern: str
+    response: str
+    supporting_metrics: list[str]
+    citations: list[str]
+    confidence: float
+
+
+class ScriptRow(TypedDict):
+    provider_id: str
+    tumor_focus: str
+    script: str
+    citations: list[str]
+    confidence: float
+
+
+class RetrievedItem(TypedDict):
+    chunk_id: str
+    source: str
+    distance: float
+
+
+class RetrievalRow(TypedDict):
+    provider_id: str
+    query_text: str
+    retrieved: list[RetrievedItem]
+
+
+class ObjectionPayload(TypedDict):
+    schema_version: str
+    objections: list[ObjectionRow]
+
+
+class MeetingPayload(TypedDict):
+    schema_version: str
+    scripts: list[ScriptRow]
+
+
+class RetrievalPayload(TypedDict):
+    schema_version: str
+    retrieval_debug: list[RetrievalRow]
+
+
 def _ensure_inputs(settings: Settings) -> None:
     if settings.market_csv.exists() and settings.crm_csv.exists() and settings.kb_markdown.exists():
         return
@@ -39,7 +83,7 @@ def _ensure_inputs(settings: Settings) -> None:
     )
 
 
-def _write_toml(path: Path, payload: dict[str, Any]) -> None:
+def _write_toml(path: Path, payload: Mapping[str, object]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("wb") as fh:
         toml_dump(payload, fh)
@@ -200,9 +244,9 @@ def run_pipeline(
             ]
         },
     )
-    objection_rows: list[dict[str, Any]] = []
-    script_rows: list[dict[str, Any]] = []
-    retrieval_rows: list[dict[str, Any]] = []
+    objection_rows: list[ObjectionRow] = []
+    script_rows: list[ScriptRow] = []
+    retrieval_rows: list[RetrievalRow] = []
     for provider in providers:
         provider_notes = [note for note in notes if note.provider_id == provider.provider_id]
         concern = provider_notes[0].concern_type if provider_notes else "general"
@@ -271,9 +315,18 @@ def run_pipeline(
                 ],
             }
         )
-    objection_payload = {"schema_version": SCHEMA_VERSION, "objections": objection_rows}
-    meeting_payload = {"schema_version": SCHEMA_VERSION, "scripts": script_rows}
-    retrieval_payload = {"schema_version": SCHEMA_VERSION, "retrieval_debug": retrieval_rows}
+    objection_payload: ObjectionPayload = {
+        "schema_version": SCHEMA_VERSION,
+        "objections": objection_rows,
+    }
+    meeting_payload: MeetingPayload = {
+        "schema_version": SCHEMA_VERSION,
+        "scripts": script_rows,
+    }
+    retrieval_payload: RetrievalPayload = {
+        "schema_version": SCHEMA_VERSION,
+        "retrieval_debug": retrieval_rows,
+    }
     _write_toml(objection_path, objection_payload)
     _write_toml(script_path, meeting_payload)
     _write_toml(retrieval_debug_path, retrieval_payload)

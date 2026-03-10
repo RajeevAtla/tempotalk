@@ -1,9 +1,28 @@
 from __future__ import annotations
 
 from os import getenv
-from typing import Any, Protocol, runtime_checkable
+from typing import Callable, Mapping, Protocol, Sequence, TypeVar, cast, runtime_checkable
 
 from tempus_copilot.models import MeetingScriptArtifact, ObjectionArtifact
+
+_ResultT = TypeVar("_ResultT")
+
+
+class BamlObjectionResponse(Protocol):
+    provider_id: object
+    concern: object
+    response: object
+    supporting_metrics: Sequence[object]
+    citations: Sequence[object]
+    confidence: float | int | str
+
+
+class BamlMeetingScriptResponse(Protocol):
+    provider_id: object
+    tumor_focus: object
+    script: object
+    citations: Sequence[object]
+    confidence: float | int | str
 
 
 @runtime_checkable
@@ -29,29 +48,37 @@ class GenerationClient(Protocol):
 class BamlGenerationClient:
     def __init__(
         self,
-        client: Any | None = None,
+        client: object | None = None,
         fallback_client: GenerationClient | None = None,
         max_retries: int = 1,
     ) -> None:
         if client is None:
             from baml_client.sync_client import b as default_client
 
-            self._client: Any = default_client
+            self._client: object = default_client
         else:
             self._client = client
         self._fallback = fallback_client or RuleBasedGenerationClient()
         self._max_retries = max(0, max_retries)
 
-    def _call_with_retry(self, fn: Any, kwargs: dict[str, Any]) -> Any:
+    def _call_with_retry(
+        self, fn: Callable[..., _ResultT], kwargs: Mapping[str, object]
+    ) -> _ResultT:
         last_error: Exception | None = None
         for _ in range(self._max_retries + 1):
             try:
-                return fn(**kwargs)
+                return fn(**dict(kwargs))
             except Exception as err:
                 last_error = err
         if last_error is not None:
             raise last_error
         raise RuntimeError("BAML generation failed without exception details")
+
+    def _invoke(self, method_name: str, kwargs: Mapping[str, object]) -> object:
+        method = getattr(self._client, method_name, None)
+        if method is None or not callable(method):
+            raise AttributeError(f"Client method {method_name} is unavailable")
+        return self._call_with_retry(cast(Callable[..., object], method), kwargs)
 
     def generate_objection_handler(
         self,
@@ -62,8 +89,8 @@ class BamlGenerationClient:
         observed_metrics: list[str],
     ) -> ObjectionArtifact:
         try:
-            result = self._call_with_retry(
-                self._client.GenerateObjectionHandler,
+            raw = self._invoke(
+                "GenerateObjectionHandler",
                 {
                     "provider_id": provider_id,
                     "concern": concern,
@@ -72,6 +99,7 @@ class BamlGenerationClient:
                     "observed_metrics": observed_metrics,
                 },
             )
+            result = cast(BamlObjectionResponse, raw)
             return ObjectionArtifact(
                 provider_id=str(result.provider_id),
                 concern=str(result.concern),
@@ -97,8 +125,8 @@ class BamlGenerationClient:
         citation_ids: list[str],
     ) -> MeetingScriptArtifact:
         try:
-            result = self._call_with_retry(
-                self._client.GenerateMeetingScript,
+            raw = self._invoke(
+                "GenerateMeetingScript",
                 {
                     "provider_id": provider_id,
                     "tumor_focus": tumor_focus,
@@ -106,6 +134,7 @@ class BamlGenerationClient:
                     "citation_ids": citation_ids,
                 },
             )
+            result = cast(BamlMeetingScriptResponse, raw)
             return MeetingScriptArtifact(
                 provider_id=str(result.provider_id),
                 tumor_focus=str(result.tumor_focus),
