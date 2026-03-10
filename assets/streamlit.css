@@ -1,0 +1,239 @@
+:root {
+  --paper: #f5efe5;
+  --paper-deep: #e8dfd1;
+  --ink: #171512;
+  --muted: #5f594f;
+  --accent: #9a311d;
+  --accent-strong: #742112;
+  --accent-soft: rgba(154, 49, 29, 0.12);
+  --border: rgba(23, 21, 18, 0.12);
+  --card: rgba(255, 250, 243, 0.92);
+  --shadow: 0 16px 40px rgba(50, 32, 19, 0.08);
+}
+
+.stApp {
+  background:
+    radial-gradient(circle at top left, rgba(154, 49, 29, 0.12), transparent 34%),
+    linear-gradient(180deg, var(--paper) 0%, var(--paper-deep) 100%);
+  color: var(--ink);
+}
+
+[data-testid="stSidebar"] {
+  background:
+    linear-gradient(180deg, rgba(24, 22, 19, 0.97) 0%, rgba(36, 31, 26, 0.99) 100%);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+[data-testid="stSidebar"] * {
+  color: #f8f0e4;
+}
+
+[data-testid="stSidebar"] [data-baseweb="radio"] label {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 0.35rem 0.45rem;
+  margin-bottom: 0.25rem;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.hero-shell {
+  max-width: 60rem;
+  margin: 0.5rem 0 1.75rem 0;
+  padding: 1.4rem 1.5rem 1.2rem 1.5rem;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background:
+    linear-gradient(140deg, rgba(30, 27, 23, 0.96), rgba(58, 39, 29, 0.94));
+  box-shadow: var(--shadow);
+}
+
+.hero-shell h1 {
+  margin: 0.3rem 0 0.45rem 0;
+  color: #fbf5ed;
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.hero-shell p {
+  max-width: 44rem;
+  margin: 0;
+  color: rgba(251, 245, 237, 0.8);
+  font-size: 1rem;
+}
+
+.hero-kicker,
+.section-label {
+  display: inline-block;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+}
+
+.hero-kicker {
+  color: #f0b39d;
+}
+
+.section-intro {
+  margin: 0 0 1rem 0;
+}
+
+.section-intro p {
+  max-width: 52rem;
+  margin: 0.35rem 0 0 0;
+  color: var(--muted);
+}
+
+.section-label {
+  color: var(--accent);
+}
+
+.control-block {
+  margin: 0.5rem 0 0.9rem 0;
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.insight-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 0.2rem 0 1.2rem 0;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  border: 1px solid var(--border);
+  background: rgba(255, 250, 243, 0.6);
+}
+
+.insight-banner strong {
+  color: var(--accent-strong);
+}
+
+.insight-banner span {
+  color: var(--muted);
+}
+
+.metric-grid,
+.meta-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.metric-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin: 0.8rem 0 1.7rem 0;
+}
+
+.metric-card,
+.meta-card,
+.artifact-card {
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+}
+
+.metric-card {
+  padding: 1rem 1.1rem;
+}
+
+.metric-card span,
+.meta-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.metric-card strong,
+.meta-card strong {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--ink);
+  font-size: 1.35rem;
+}
+
+.meta-grid {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  margin: 0.35rem 0 1.3rem 0;
+}
+
+.meta-card {
+  padding: 0.9rem 1rem;
+}
+
+.artifact-card {
+  padding: 1rem 1.1rem;
+  margin: 0 0 1rem 0;
+}
+
+.artifact-card p {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.55;
+}
+
+.artifact-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+}
+
+.artifact-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0.12rem 0.72rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.artifact-foot {
+  margin-top: 0.45rem;
+  color: var(--muted);
+  font-size: 0.91rem;
+}
+
+[data-testid="stForm"] {
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 1rem 1rem 0.4rem 1rem;
+  background: rgba(255, 252, 246, 0.65);
+}
+
+.stButton > button,
+[data-testid="stFormSubmitButton"] > button {
+  border-radius: 999px;
+  border: 1px solid var(--accent-strong);
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%);
+  color: #fff7f1;
+  font-weight: 700;
+}
+
+.stButton > button:hover,
+[data-testid="stFormSubmitButton"] > button:hover {
+  border-color: var(--accent-strong);
+  color: #fff7f1;
+}
+
+[data-testid="stDataFrame"] {
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+@media (max-width: 900px) {
+  .hero-shell h1 {
+    font-size: 2.35rem;
+  }
+}

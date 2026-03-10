@@ -1,4 +1,4 @@
-# TempoTalk (CLI)
+# TempoTalk
 
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![ty](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ty/main/assets/badge/v0.json)](https://github.com/astral-sh/ty)
@@ -14,6 +14,7 @@ uv run ruff check .
 uv run ty check
 uv run python -m scripts.run_cli run --config config/defaults.toml --strict-citations --fail-on-low-confidence 0.6
 uv run python -m scripts.run_cli validate-output outputs/run_YYYYMMDD_HHMMSS
+uv run streamlit run streamlit_app.py
 ```
 
 Regenerate committed BAML artifacts only when `baml_src/sales_copilot.baml` changes:
@@ -46,6 +47,35 @@ ollama pull embeddinggemma
 ```
 
 Only embeddings run locally. Generation remains cloud-only.
+
+## Streamlit Frontend
+
+Launch the operator UI:
+
+```bash
+uv run streamlit run streamlit_app.py
+```
+
+The Streamlit app is a thin frontend over the same typed backend used by the CLI. It does not shell
+out to the CLI for normal runs. Instead it calls the library layer directly through
+`src/tempus_copilot/ui_service.py`.
+
+The frontend includes:
+
+- a guided run form for launching the pipeline
+- a run browser for reviewing ranked providers, objections, scripts, and retrieval traces
+- an output validation view for schema/checksum checks
+- system notes for runtime boundaries and env configuration
+
+Operator notes:
+
+- the sidebar `Config Path` selects which TOML settings file is loaded at startup
+- the run form applies overrides in memory only; it does not rewrite `config/defaults.toml`
+- if the configured input files are missing, the backend generates mock inputs before running
+- if the configured `outputs/` directory has no `run_*` folders yet, the browse/validate views show
+  empty-state guidance instead of failing
+- the run browser and validator read the same TOML artifacts the CLI writes and the validator checks
+  for required keys plus checksum integrity
 
 ## Runtime Architecture
 

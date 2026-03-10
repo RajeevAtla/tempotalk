@@ -48,6 +48,76 @@ class RetrievalTableRow(TypedDict):
     retrieved: list[RetrievalHitRow]
 
 
+class RunMetadataView(TypedDict, total=False):
+    schema_version: str
+    generated_at_utc: str
+    provider_count: int
+    note_count: int
+    kb_doc_count: int
+    kb_chunk_count: int
+    generation_model: str
+    embedding_model: str
+    output_checksum_sha256: str
+    baml_schema_sha256: str
+    baml_prompt_sha256: str
+
+
+@dataclass(frozen=True)
+class RankedProviderView:
+    provider_id: str
+    physician_name: str
+    institution: str
+    score: float
+    rationale: str
+    factor_scores: dict[str, float]
+    calibration_terms: dict[str, float]
+    factor_contributions: dict[str, float]
+
+
+@dataclass(frozen=True)
+class ObjectionView:
+    provider_id: str
+    concern: str
+    response: str
+    supporting_metrics: list[str]
+    citations: list[str]
+    confidence: float
+
+
+@dataclass(frozen=True)
+class MeetingScriptView:
+    provider_id: str
+    tumor_focus: str
+    script: str
+    citations: list[str]
+    confidence: float
+
+
+@dataclass(frozen=True)
+class RetrievalHitView:
+    chunk_id: str
+    source: str
+    distance: float
+
+
+@dataclass(frozen=True)
+class RetrievalDebugView:
+    provider_id: str
+    query_text: str
+    retrieved: list[RetrievalHitView]
+
+
+@dataclass(frozen=True)
+class RunBundle:
+    run_dir: Path
+    ranked_providers: list[RankedProviderView]
+    objections: list[ObjectionView]
+    scripts: list[MeetingScriptView]
+    retrieval_debug: list[RetrievalDebugView]
+    metadata: RunMetadataView
+    validation_errors: list[str]
+
+
 @dataclass(frozen=True)
 class SettingsOverride:
     market_csv: Path | None = None
@@ -87,7 +157,17 @@ class ValidationSummary:
 @dataclass(frozen=True)
 class RunSummary:
     run_dir: Path
-    metadata: dict[str, object]
+    generated_at_utc: str
+    provider_count: int
+    generation_model: str
+    embedding_model: str
+    validation_errors: list[str]
+
+
+@dataclass(frozen=True)
+class LoadedRunSummary:
+    run_dir: Path
+    metadata: RunMetadataView
     providers: list[ProviderTableRow]
     objections: list[ObjectionTableRow]
     meeting_scripts: list[MeetingScriptTableRow]
@@ -99,8 +179,14 @@ def load_ui_settings(config_path: Path = DEFAULT_CONFIG_PATH) -> Settings:
     return load_settings(config_path)
 
 
+def load_default_settings(config_path: Path = DEFAULT_CONFIG_PATH) -> Settings:
+    return load_ui_settings(config_path)
+
+
 def apply_settings_overrides(settings: Settings, overrides: SettingsOverride) -> Settings:
-    path_updates: dict[str, object] = {}
+    updated = settings
+
+    path_updates: dict[str, Path] = {}
     if overrides.market_csv is not None:
         path_updates["market_csv"] = overrides.market_csv
     if overrides.crm_csv is not None:
@@ -109,14 +195,20 @@ def apply_settings_overrides(settings: Settings, overrides: SettingsOverride) ->
         path_updates["kb_markdown"] = overrides.kb_markdown
     if overrides.output_dir is not None:
         path_updates["output_dir"] = overrides.output_dir
+    if path_updates:
+        updated = updated.model_copy(update=path_updates)
 
-    model_updates: dict[str, object] = {}
+    model_updates: dict[str, str] = {}
     if overrides.generation_model is not None:
         model_updates["generation_model"] = overrides.generation_model
     if overrides.embedding_model is not None:
         model_updates["embedding_model"] = overrides.embedding_model
+    if model_updates:
+        updated = updated.model_copy(
+            update={"models": updated.models.model_copy(update=model_updates)}
+        )
 
-    rag_updates: dict[str, object] = {}
+    rag_updates: dict[str, int | float] = {}
     if overrides.chunk_size is not None:
         rag_updates["chunk_size"] = overrides.chunk_size
     if overrides.chunk_overlap is not None:
@@ -127,8 +219,10 @@ def apply_settings_overrides(settings: Settings, overrides: SettingsOverride) ->
         rag_updates["request_retries"] = overrides.request_retries
     if overrides.backoff_seconds is not None:
         rag_updates["backoff_seconds"] = overrides.backoff_seconds
+    if rag_updates:
+        updated = updated.model_copy(update={"rag": updated.rag.model_copy(update=rag_updates)})
 
-    ranking_updates: dict[str, object] = {}
+    ranking_updates: dict[str, float] = {}
     if overrides.patient_volume_weight is not None:
         ranking_updates["patient_volume"] = overrides.patient_volume_weight
     if overrides.clinical_fit_weight is not None:
@@ -137,30 +231,22 @@ def apply_settings_overrides(settings: Settings, overrides: SettingsOverride) ->
         ranking_updates["objection_urgency"] = overrides.objection_urgency_weight
     if overrides.recency_weight is not None:
         ranking_updates["recency"] = overrides.recency_weight
-
-    output_updates: dict[str, object] = {}
-    if overrides.strict_citations is not None:
-        output_updates["strict_citations"] = overrides.strict_citations
-
-    updated = settings
-    if path_updates:
-        updated = updated.model_copy(update=path_updates)
-    if model_updates:
-        updated = updated.model_copy(
-            update={"models": updated.models.model_copy(update=model_updates)}
-        )
-    if rag_updates:
-        updated = updated.model_copy(update={"rag": updated.rag.model_copy(update=rag_updates)})
     if ranking_updates:
         updated = updated.model_copy(
             update={
                 "ranking_weights": updated.ranking_weights.model_copy(update=ranking_updates)
             }
         )
-    if output_updates:
+
+    if overrides.strict_citations is not None:
         updated = updated.model_copy(
-            update={"output": updated.output.model_copy(update=output_updates)}
+            update={
+                "output": updated.output.model_copy(
+                    update={"strict_citations": overrides.strict_citations}
+                )
+            }
         )
+
     return updated
 
 
@@ -173,11 +259,11 @@ def run_pipeline_from_ui(
     settings = load_ui_settings(config_path)
     if settings_overrides is not None:
         settings = apply_settings_overrides(settings, settings_overrides)
-    run_options = controls or RunControls()
+    run_controls = controls or RunControls()
     result = run_pipeline(
         settings,
-        strict_citations=run_options.strict_citations,
-        fail_on_low_confidence=run_options.fail_on_low_confidence,
+        strict_citations=run_controls.strict_citations,
+        fail_on_low_confidence=run_controls.fail_on_low_confidence,
     )
     return result.run_dir
 
@@ -185,17 +271,15 @@ def run_pipeline_from_ui(
 def discover_run_dirs(output_dir: Path) -> list[Path]:
     if not output_dir.exists():
         return []
-    runs = [
-        path
-        for path in output_dir.iterdir()
-        if path.is_dir() and path.name.startswith("run_")
+    run_dirs = [
+        path for path in output_dir.iterdir() if path.is_dir() and path.name.startswith("run_")
     ]
-    runs.sort(key=lambda path: path.name, reverse=True)
-    return runs
+    run_dirs.sort(key=lambda path: path.name, reverse=True)
+    return run_dirs
 
 
-def load_run_summary(run_dir: Path) -> RunSummary:
-    return RunSummary(
+def load_run_summary(run_dir: Path) -> LoadedRunSummary:
+    return LoadedRunSummary(
         run_dir=run_dir,
         metadata=_load_metadata(run_dir),
         providers=_load_providers(run_dir),
@@ -210,16 +294,128 @@ def validate_run_summary(run_dir: Path) -> ValidationSummary:
     return ValidationSummary(run_dir=run_dir, errors=validate_run_outputs(run_dir))
 
 
-def _load_metadata(run_dir: Path) -> dict[str, object]:
-    metadata_path = run_dir / "run_metadata.toml"
-    if not metadata_path.exists():
+def load_run_bundle(run_dir: Path) -> RunBundle:
+    summary = load_run_summary(run_dir)
+    return RunBundle(
+        run_dir=summary.run_dir,
+        ranked_providers=[
+            RankedProviderView(
+                provider_id=row["provider_id"],
+                physician_name=row["physician_name"],
+                institution=row["institution"],
+                score=row["score"],
+                rationale=row["rationale"],
+                factor_scores={},
+                calibration_terms={},
+                factor_contributions={},
+            )
+            for row in summary.providers
+        ],
+        objections=[
+            ObjectionView(
+                provider_id=row["provider_id"],
+                concern=row["concern"],
+                response=row["response"],
+                supporting_metrics=row["supporting_metrics"],
+                citations=row["citations"],
+                confidence=row["confidence"],
+            )
+            for row in summary.objections
+        ],
+        scripts=[
+            MeetingScriptView(
+                provider_id=row["provider_id"],
+                tumor_focus=row["tumor_focus"],
+                script=row["script"],
+                citations=row["citations"],
+                confidence=row["confidence"],
+            )
+            for row in summary.meeting_scripts
+        ],
+        retrieval_debug=[
+            RetrievalDebugView(
+                provider_id=row["provider_id"],
+                query_text=row["query_text"],
+                retrieved=[
+                    RetrievalHitView(
+                        chunk_id=hit["chunk_id"],
+                        source=hit["source"],
+                        distance=hit["distance"],
+                    )
+                    for hit in row["retrieved"]
+                ],
+            )
+            for row in summary.retrieval_debug
+        ],
+        metadata=summary.metadata,
+        validation_errors=summary.validation.errors,
+    )
+
+
+def summarize_runs(output_dir: Path) -> list[RunSummary]:
+    summaries: list[RunSummary] = []
+    for run_dir in discover_run_dirs(output_dir):
+        loaded = load_run_summary(run_dir)
+        validation_errors = loaded.validation.errors
+        summaries.append(
+            RunSummary(
+                run_dir=loaded.run_dir,
+                generated_at_utc=loaded.metadata.get("generated_at_utc", ""),
+                provider_count=loaded.metadata.get("provider_count", len(loaded.providers)),
+                generation_model=loaded.metadata.get("generation_model", ""),
+                embedding_model=loaded.metadata.get("embedding_model", ""),
+                validation_errors=validation_errors,
+            )
+        )
+    return summaries
+
+
+def _load_metadata(run_dir: Path) -> RunMetadataView:
+    payload = _load_payload(run_dir / "run_metadata.toml")
+    if not payload:
         return {}
-    return parse_toml(metadata_path)
+    metadata: RunMetadataView = {}
+
+    schema_version = payload.get("schema_version")
+    if isinstance(schema_version, str):
+        metadata["schema_version"] = schema_version
+    generated_at_utc = payload.get("generated_at_utc")
+    if isinstance(generated_at_utc, str):
+        metadata["generated_at_utc"] = generated_at_utc
+    provider_count = _coerce_metadata_int(payload.get("provider_count"))
+    if provider_count is not None:
+        metadata["provider_count"] = provider_count
+    note_count = _coerce_metadata_int(payload.get("note_count"))
+    if note_count is not None:
+        metadata["note_count"] = note_count
+    kb_doc_count = _coerce_metadata_int(payload.get("kb_doc_count"))
+    if kb_doc_count is not None:
+        metadata["kb_doc_count"] = kb_doc_count
+    kb_chunk_count = _coerce_metadata_int(payload.get("kb_chunk_count"))
+    if kb_chunk_count is not None:
+        metadata["kb_chunk_count"] = kb_chunk_count
+    generation_model = payload.get("generation_model")
+    if isinstance(generation_model, str):
+        metadata["generation_model"] = generation_model
+    embedding_model = payload.get("embedding_model")
+    if isinstance(embedding_model, str):
+        metadata["embedding_model"] = embedding_model
+    output_checksum = payload.get("output_checksum_sha256")
+    if isinstance(output_checksum, str):
+        metadata["output_checksum_sha256"] = output_checksum
+    baml_schema_hash = payload.get("baml_schema_sha256")
+    if isinstance(baml_schema_hash, str):
+        metadata["baml_schema_sha256"] = baml_schema_hash
+    baml_prompt_hash = payload.get("baml_prompt_sha256")
+    if isinstance(baml_prompt_hash, str):
+        metadata["baml_prompt_sha256"] = baml_prompt_hash
+
+    return metadata
 
 
 def _load_providers(run_dir: Path) -> list[ProviderTableRow]:
     payload = _load_payload(run_dir / "ranked_providers.toml")
-    providers = _get_list(payload, "providers")
+    providers = _get_mapping_list(payload, "providers")
     return [
         {
             "provider_id": _get_str(item, "provider_id"),
@@ -234,7 +430,7 @@ def _load_providers(run_dir: Path) -> list[ProviderTableRow]:
 
 def _load_objections(run_dir: Path) -> list[ObjectionTableRow]:
     payload = _load_payload(run_dir / "objection_handlers.toml")
-    objections = _get_list(payload, "objections")
+    objections = _get_mapping_list(payload, "objections")
     return [
         {
             "provider_id": _get_str(item, "provider_id"),
@@ -250,7 +446,7 @@ def _load_objections(run_dir: Path) -> list[ObjectionTableRow]:
 
 def _load_meeting_scripts(run_dir: Path) -> list[MeetingScriptTableRow]:
     payload = _load_payload(run_dir / "meeting_scripts.toml")
-    scripts = _get_list(payload, "scripts")
+    scripts = _get_mapping_list(payload, "scripts")
     return [
         {
             "provider_id": _get_str(item, "provider_id"),
@@ -265,7 +461,7 @@ def _load_meeting_scripts(run_dir: Path) -> list[MeetingScriptTableRow]:
 
 def _load_retrieval_debug(run_dir: Path) -> list[RetrievalTableRow]:
     payload = _load_payload(run_dir / "retrieval_debug.toml")
-    rows = _get_list(payload, "retrieval_debug")
+    rows = _get_mapping_list(payload, "retrieval_debug")
     return [
         {
             "provider_id": _get_str(item, "provider_id"),
@@ -276,7 +472,7 @@ def _load_retrieval_debug(run_dir: Path) -> list[RetrievalTableRow]:
                     "source": _get_str(hit, "source"),
                     "distance": _get_float(hit, "distance"),
                 }
-                for hit in _get_list(item, "retrieved")
+                for hit in _get_mapping_list(item, "retrieved")
             ],
         }
         for item in rows
@@ -295,11 +491,16 @@ def _get_mapping(value: object) -> dict[str, object]:
     return {}
 
 
-def _get_list(mapping: dict[str, object], key: str) -> list[dict[str, object]]:
+def _get_mapping_list(mapping: dict[str, object], key: str) -> list[dict[str, object]]:
     value = mapping.get(key)
     if not isinstance(value, list):
         return []
-    return [_get_mapping(item) for item in value]
+    rows: list[dict[str, object]] = []
+    for item in value:
+        row = _get_mapping(item)
+        if row:
+            rows.append(row)
+    return rows
 
 
 def _get_str(mapping: dict[str, object], key: str) -> str:
@@ -317,6 +518,14 @@ def _get_float(mapping: dict[str, object], key: str) -> float:
         except ValueError:
             return 0.0
     return 0.0
+
+
+def _coerce_metadata_int(value: object) -> int | None:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    return None
 
 
 def _get_string_list(mapping: dict[str, object], key: str) -> list[str]:

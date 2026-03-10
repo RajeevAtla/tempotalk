@@ -187,6 +187,8 @@ def test_load_run_summary_parses_outputs_into_display_rows(tmp_path: Path) -> No
     assert summary.meeting_scripts[0]["tumor_focus"] == "Lung"
     assert summary.retrieval_debug[0]["retrieved"][0]["chunk_id"] == "product_kb.md:0"
     assert summary.metadata["provider_count"] == 1
+    assert not summary.validation.is_valid
+    assert summary.validation.errors == ["Checksum mismatch between metadata and outputs"]
 
 
 def test_load_run_summary_handles_missing_files(tmp_path: Path) -> None:
@@ -198,3 +200,4 @@ def test_load_run_summary_handles_missing_files(tmp_path: Path) -> None:
     assert summary.meeting_scripts == []
     assert summary.retrieval_debug == []
     assert summary.metadata == {}
+    assert not summary.validation.is_valid
