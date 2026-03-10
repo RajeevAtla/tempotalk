@@ -1,61 +1,10 @@
 import tomllib
 from pathlib import Path
 
-import numpy as np
-
 from tempus_copilot.config import load_settings
-from tempus_copilot.models import MeetingScriptArtifact, ObjectionArtifact
 from tempus_copilot.output_schema import validate_run_outputs
 from tempus_copilot.pipeline import run_pipeline
-
-
-class FakeEmbeddingClient:
-    def embed_texts(self, texts: list[str]) -> np.ndarray:
-        vectors: list[list[float]] = []
-        for text in texts:
-            lowered = text.lower()
-            vectors.append(
-                [
-                    float("turnaround" in lowered),
-                    float("sensitivity" in lowered or "specificity" in lowered),
-                    float("support" in lowered or "workflow" in lowered),
-                ]
-            )
-        return np.array(vectors, dtype=np.float32)
-
-
-class FakeGenerationClient:
-    def generate_objection_handler(
-        self,
-        provider_id: str,
-        concern: str,
-        kb_context: str,
-        citation_ids: list[str],
-        observed_metrics: list[str],
-    ) -> ObjectionArtifact:
-        return ObjectionArtifact(
-            provider_id=provider_id,
-            concern=concern,
-            response=f"{provider_id}:{concern}:{kb_context[:40]}",
-            supporting_metrics=observed_metrics,
-            citations=citation_ids,
-            confidence=0.86,
-        )
-
-    def generate_meeting_script(
-        self,
-        provider_id: str,
-        tumor_focus: str,
-        kb_context: str,
-        citation_ids: list[str],
-    ) -> MeetingScriptArtifact:
-        return MeetingScriptArtifact(
-            provider_id=provider_id,
-            tumor_focus=tumor_focus,
-            script=f"{provider_id}:{tumor_focus}:{kb_context[:40]}",
-            citations=citation_ids,
-            confidence=0.82,
-        )
+from tests.helpers.fakes import pipeline_embedding_client, static_generation_client
 
 
 def test_pipeline_writes_toml_outputs(tmp_path: Path) -> None:
@@ -63,8 +12,11 @@ def test_pipeline_writes_toml_outputs(tmp_path: Path) -> None:
     settings = settings.model_copy(update={"output_dir": tmp_path})
     result = run_pipeline(
         settings,
-        embedding_client=FakeEmbeddingClient(),
-        generation_client=FakeGenerationClient(),
+        embedding_client=pipeline_embedding_client(),
+        generation_client=static_generation_client(
+            objection_confidence=0.86,
+            script_confidence=0.82,
+        ),
     )
     assert result.ranked_providers_path.exists()
     assert result.objection_handlers_path.exists()

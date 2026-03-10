@@ -8,13 +8,18 @@
 
 ```bash
 uv sync --dev
-uv run baml-cli generate
 uv run pytest -q
 uv run pytest -q tests/test_golden_run.py
 uv run ruff check .
 uv run ty check
 uv run python -m scripts.run_cli run --config config/defaults.toml --strict-citations --fail-on-low-confidence 0.6
 uv run python -m scripts.run_cli validate-output outputs/run_YYYYMMDD_HHMMSS
+```
+
+Regenerate committed BAML artifacts only when `baml_src/sales_copilot.baml` changes:
+
+```bash
+uv run baml-cli generate
 ```
 
 Run optional live Ollama integration tests:
@@ -42,6 +47,17 @@ ollama pull embeddinggemma
 
 Only embeddings run locally. Generation remains cloud-only.
 
+## Runtime Architecture
+
+The active runtime path uses the handwritten adapter in
+`src/tempus_copilot/llm/baml_adapter.py`.
+
+`baml_src/` is the human-edited prompt/schema source of truth used for metadata hashing and for
+regenerating `baml_client/`.
+
+`baml_client/` is committed generated code. It is kept for inspection and sync validation, but the
+pipeline does not call it at runtime.
+
 ## Mock Data
 
 ```bash
@@ -53,6 +69,12 @@ This writes:
 - `data/mock/market_intelligence.csv`
 - `data/mock/crm_notes.csv`
 - `data/mock/product_kb.md`
+
+If the configured input files are missing, the pipeline auto-generates mock data in the configured
+input directory before running.
+
+`data/` and `outputs/` are local artifacts and are gitignored. The committed output contract lives
+under `tests/fixtures/`, especially `tests/fixtures/golden/`.
 
 ## Outputs
 

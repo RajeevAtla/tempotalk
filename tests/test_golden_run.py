@@ -1,60 +1,8 @@
 from pathlib import Path
 
-import numpy as np
-
 from tempus_copilot.config import load_settings
-from tempus_copilot.models import MeetingScriptArtifact, ObjectionArtifact
 from tempus_copilot.pipeline import run_pipeline
-
-
-class GoldenEmbeddingClient:
-    def embed_texts(self, texts: list[str]) -> np.ndarray:
-        rows: list[list[float]] = []
-        for text in texts:
-            lowered = text.lower()
-            rows.append(
-                [
-                    float("turnaround" in lowered),
-                    float("sensitivity" in lowered or "specificity" in lowered),
-                    float("workflow" in lowered or "support" in lowered),
-                    float("leukemia" in lowered),
-                ]
-            )
-        return np.array(rows, dtype=np.float32)
-
-
-class GoldenGenerationClient:
-    def generate_objection_handler(
-        self,
-        provider_id: str,
-        concern: str,
-        kb_context: str,
-        citation_ids: list[str],
-        observed_metrics: list[str],
-    ) -> ObjectionArtifact:
-        return ObjectionArtifact(
-            provider_id=provider_id,
-            concern=concern,
-            response=f"Objection {provider_id} {concern}",
-            supporting_metrics=observed_metrics,
-            citations=citation_ids,
-            confidence=0.77,
-        )
-
-    def generate_meeting_script(
-        self,
-        provider_id: str,
-        tumor_focus: str,
-        kb_context: str,
-        citation_ids: list[str],
-    ) -> MeetingScriptArtifact:
-        return MeetingScriptArtifact(
-            provider_id=provider_id,
-            tumor_focus=tumor_focus,
-            script=f"Script {provider_id} {tumor_focus}",
-            citations=citation_ids,
-            confidence=0.74,
-        )
+from tests.helpers.fakes import default_retrieval_embedding_client, static_generation_client
 
 
 def test_golden_run_outputs_match_fixtures(tmp_path: Path) -> None:
@@ -68,8 +16,11 @@ def test_golden_run_outputs_match_fixtures(tmp_path: Path) -> None:
     )
     result = run_pipeline(
         settings,
-        embedding_client=GoldenEmbeddingClient(),
-        generation_client=GoldenGenerationClient(),
+        embedding_client=default_retrieval_embedding_client(),
+        generation_client=static_generation_client(
+            objection_confidence=0.77,
+            script_confidence=0.74,
+        ),
         strict_citations=True,
     )
     assert (

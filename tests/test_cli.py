@@ -3,39 +3,10 @@ import sys
 from pathlib import Path
 
 import pytest
-import tomli_w
 
 from tempus_copilot.cli import main, run
 from tempus_copilot.config import load_settings
-from tempus_copilot.output_schema import compute_output_checksum
-
-
-def _write_valid_run_dir(run_dir: Path) -> None:
-    run_dir.mkdir(parents=True, exist_ok=True)
-    (run_dir / "ranked_providers.toml").write_text(
-        'schema_version = "1.0.0"\nproviders = []\n',
-        encoding="utf-8",
-    )
-    (run_dir / "objection_handlers.toml").write_text(
-        'schema_version = "1.0.0"\nobjections = []\n',
-        encoding="utf-8",
-    )
-    (run_dir / "meeting_scripts.toml").write_text(
-        'schema_version = "1.0.0"\nscripts = []\n',
-        encoding="utf-8",
-    )
-    (run_dir / "retrieval_debug.toml").write_text(
-        'schema_version = "1.0.0"\nretrieval_debug = []\n',
-        encoding="utf-8",
-    )
-    checksum = compute_output_checksum(run_dir)
-    metadata = {
-        "schema_version": "1.0.0",
-        "output_checksum_sha256": checksum,
-        "baml_schema_sha256": "x",
-        "baml_prompt_sha256": "y",
-    }
-    (run_dir / "run_metadata.toml").write_bytes(tomli_w.dumps(metadata).encode("utf-8"))
+from tests.helpers.output_builders import write_valid_run_dir
 
 
 def test_cli_run_returns_zero(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -50,7 +21,7 @@ def test_cli_validate_output_command_returns_zero(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def fake_run_pipeline(*_: object, **__: object) -> None:
-        _write_valid_run_dir(tmp_path / "run_20260309_000000")
+        write_valid_run_dir(tmp_path / "run_20260309_000000")
 
     monkeypatch.setattr("tempus_copilot.cli.run_pipeline", fake_run_pipeline)
     settings = load_settings(Path("config/defaults.toml")).model_copy(
@@ -128,7 +99,7 @@ def test_cli_returns_two_for_unexpected_command_namespace(
 
 def test_cli_module_main_guard_executes_and_exits_zero(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
-    _write_valid_run_dir(run_dir)
+    write_valid_run_dir(run_dir)
 
     original = sys.argv
     try:

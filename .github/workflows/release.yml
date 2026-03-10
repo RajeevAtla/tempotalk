@@ -15,6 +15,8 @@ jobs:
         run: uv sync --locked --dev
       - name: Generate BAML client
         run: uv run baml-cli generate
+      - name: Verify generated BAML client is in sync
+        run: git diff --exit-code -- baml_client baml_src
       - name: Ruff
         run: uv run ruff check .
       - name: Ty
@@ -32,6 +34,8 @@ jobs:
         run: uv sync --locked --dev
       - name: Generate BAML client
         run: uv run baml-cli generate
+      - name: Verify generated BAML client is in sync
+        run: git diff --exit-code -- baml_client baml_src
       - name: Golden tests
         run: uv run pytest -q tests/test_golden_run.py
 
@@ -45,6 +49,8 @@ jobs:
         run: uv sync --locked --dev
       - name: Generate BAML client
         run: uv run baml-cli generate
+      - name: Verify generated BAML client is in sync
+        run: git diff --exit-code -- baml_client baml_src
       - name: Integration tests
         env:
           RUN_OLLAMA_INTEGRATION: ${{ secrets.RUN_OLLAMA_INTEGRATION }}

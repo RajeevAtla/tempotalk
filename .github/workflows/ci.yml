@@ -12,6 +12,10 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - name: Sync deps
         run: uv sync --locked --dev
+      - name: Generate BAML client
+        run: uv run baml-cli generate
+      - name: Verify generated BAML client is in sync
+        run: git diff --exit-code -- baml_client baml_src
       - name: Ruff
         run: uv run ruff check .
       - name: Ty

@@ -1,59 +1,16 @@
 from hashlib import sha256
 from pathlib import Path
 
-import numpy as np
 import pytest
 
 from tempus_copilot import pipeline as pipeline_module
 from tempus_copilot.config import load_settings
-from tempus_copilot.models import MeetingScriptArtifact, ObjectionArtifact
 from tempus_copilot.pipeline import run_pipeline
-
-
-class StableGenerationClient:
-    def generate_objection_handler(
-        self,
-        provider_id: str,
-        concern: str,
-        kb_context: str,
-        citation_ids: list[str],
-        observed_metrics: list[str],
-    ) -> ObjectionArtifact:
-        return ObjectionArtifact(
-            provider_id=provider_id,
-            concern=concern,
-            response=f"{provider_id}:{concern}",
-            supporting_metrics=observed_metrics,
-            citations=citation_ids,
-            confidence=0.9,
-        )
-
-    def generate_meeting_script(
-        self,
-        provider_id: str,
-        tumor_focus: str,
-        kb_context: str,
-        citation_ids: list[str],
-    ) -> MeetingScriptArtifact:
-        return MeetingScriptArtifact(
-            provider_id=provider_id,
-            tumor_focus=tumor_focus,
-            script=f"{provider_id}:{tumor_focus}",
-            citations=citation_ids,
-            confidence=0.9,
-        )
-
-
-class EmptyKbEmbeddingClient:
-    def embed_texts(self, texts: list[str]) -> np.ndarray:
-        if texts and texts[0].startswith("Provider "):
-            return np.zeros((len(texts), 128), dtype=np.float32)
-        return np.empty((0, 0), dtype=np.float32)
-
-
-class BadShapeEmbeddingClient:
-    def embed_texts(self, texts: list[str]) -> np.ndarray:
-        return np.array([1.0, 2.0, 3.0], dtype=np.float32)
+from tests.helpers.fakes import (
+    BadShapeEmbeddingClient,
+    EmptyKBEmbeddingClient,
+    static_generation_client,
+)
 
 
 def test_pipeline_ensure_inputs_generates_mock_data_for_missing_inputs(
@@ -96,8 +53,8 @@ def test_pipeline_ensure_inputs_generates_mock_data_for_missing_inputs(
     monkeypatch.setattr(pipeline_module, "generate_mock_data", fake_generate)
     result = run_pipeline(
         settings,
-        embedding_client=EmptyKbEmbeddingClient(),
-        generation_client=StableGenerationClient(),
+        embedding_client=EmptyKBEmbeddingClient(),
+        generation_client=static_generation_client(),
     )
     assert called["value"] is True
     assert result.ranked_providers_path.exists()
@@ -144,8 +101,8 @@ def test_pipeline_handles_empty_kb_embedding_matrix(tmp_path: Path) -> None:
     )
     result = run_pipeline(
         settings,
-        embedding_client=EmptyKbEmbeddingClient(),
-        generation_client=StableGenerationClient(),
+        embedding_client=EmptyKBEmbeddingClient(),
+        generation_client=static_generation_client(),
     )
     assert result.metadata_path.exists()
 
@@ -158,7 +115,7 @@ def test_pipeline_rejects_non_2d_embedding_matrix(tmp_path: Path) -> None:
         run_pipeline(
             settings,
             embedding_client=BadShapeEmbeddingClient(),
-            generation_client=StableGenerationClient(),
+            generation_client=static_generation_client(),
         )
 
 
@@ -168,8 +125,8 @@ def test_pipeline_low_confidence_threshold_non_violation(tmp_path: Path) -> None
     )
     result = run_pipeline(
         settings,
-        embedding_client=EmptyKbEmbeddingClient(),
-        generation_client=StableGenerationClient(),
+        embedding_client=EmptyKBEmbeddingClient(),
+        generation_client=static_generation_client(),
         fail_on_low_confidence=0.2,
     )
     assert result.run_dir.exists()
